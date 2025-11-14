@@ -1,0 +1,22 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/app
+    username: app
+    password: app
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    locations: classpath:db/migration
+
+jwt:
+  issuer: "realtime-platform"
+  access-ttl-minutes: 15
+  refresh-ttl-days: 30
+  secret: "CHANGE_ME_MIN_32_BYTES_LONG_SECRET" # .env later
+cors:
+  allowed-origins: "http://localhost:4200"
