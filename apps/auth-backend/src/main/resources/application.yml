@@ -3,9 +3,9 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/app
-    username: app
-    password: app
+    url: jdbc:postgresql://localhost:5432/development
+    username: dev
+    password: carodevsql
   jpa:
     hibernate:
       ddl-auto: validate
