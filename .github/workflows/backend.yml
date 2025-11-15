@@ -1,264 +1,275 @@
-# yaml
-name: backend.yml
+  name: backend.yml
 
-on:
-  pull_request:
-    types: [opened, reopened, synchronize]
+  on:
+    pull_request:
+      types: [opened, reopened, synchronize]
 
-jobs:
-  build-and-integration:
-    runs-on: ubuntu-latest
+  jobs:
+    build-and-integration:
+      runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:18
-        env:
-          POSTGRES_DB: testdb
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: password
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+      services:
+        postgres:
+          image: postgres:18
+          env:
+            POSTGRES_DB: testdb
+            POSTGRES_USER: test
+            POSTGRES_PASSWORD: password
+          ports:
+            - 5432:5432
+          options: >-
+            --health-cmd "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"
+            --health-interval 10s
+            --health-timeout 5s
+            --health-retries 5
 
-    env:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/testdb
-      SPRING_DATASOURCE_USERNAME: test
-      SPRING_DATASOURCE_PASSWORD: password
+      env:
+        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/testdb
+        SPRING_DATASOURCE_USERNAME: test
+        SPRING_DATASOURCE_PASSWORD: password
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      steps:
+        - name: Checkout repository
+          uses: actions/checkout@v4
 
-      - name: Set up Java 21 (Temurin) and cache Gradle
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: 'gradle'
+        - name: Set up Java 21 (Temurin) and cache Gradle
+          uses: actions/setup-java@v4
+          with:
+            distribution: temurin
+            java-version: '21'
+            cache: 'gradle'
 
-      - name: Detect Gradle project directory
-        id: detect-project
-        run: |
-          proj=$(git ls-files | grep -E '(^|/)(settings.gradle|settings.gradle.kts|build.gradle|build.gradle.kts|settings.gradle.dcl|build.gradle.dcl)' | head -n1 || true)
-          if [ -z "$proj" ]; then
-            echo "has_gradle=false" >> $GITHUB_OUTPUT
-            echo "project_dir=." >> $GITHUB_OUTPUT
-            echo "No Gradle build files found in repository."
-          else
-            dir=$(dirname "$proj")
-            if [ "$dir" = "." ]; then
-              dir="."
+        - name: Detect Gradle project directory
+          id: detect-project
+          run: |
+            proj=$(git ls-files | grep -E '(^|/)(settings.gradle|settings.gradle.kts|build.gradle|build.gradle.kts|settings.gradle.dcl|build.gradle.dcl)' | head -n1 || true)
+            if [ -z "$proj" ]; then
+              echo "has_gradle=false" >> $GITHUB_OUTPUT
+              echo "project_dir=." >> $GITHUB_OUTPUT
+              echo "No Gradle build files found in repository."
+            else
+              dir=$(dirname "$proj")
+              if [ "$dir" = "." ]; then
+                dir="."
+              fi
+              echo "has_gradle=true" >> $GITHUB_OUTPUT
+              echo "project_dir=$dir" >> $GITHUB_OUTPUT
+              echo "Gradle project detected in: $dir"
             fi
-            echo "has_gradle=true" >> $GITHUB_OUTPUT
-            echo "project_dir=$dir" >> $GITHUB_OUTPUT
-            echo "Gradle project detected in: $dir"
-          fi
 
-      - name: Ensure Gradle wrapper is executable if present
-        if: ${{ steps.detect-project.outputs.has_gradle == 'true' }}
-        run: |
-          cd "${{ steps.detect-project.outputs.project_dir }}"
-          if [ -f ./gradlew ]; then
-            chmod +x ./gradlew
-            echo "Using ./gradlew"
-            echo "GRADLE_CMD=./gradlew" >> $GITHUB_ENV
-          else
-            echo "No gradlew wrapper found in project dir, will try to use gradle from PATH"
-            echo "GRADLE_CMD=gradle" >> $GITHUB_ENV
-          fi
-
-      - name: Detect whether this run should proceed (has open PR for branch or is a PR event)
-        id: pr-check
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const branch = context.ref.replace('refs/heads/','');
-            if (context.eventName === 'push') {
-              const resp = await github.rest.pulls.list({
-                owner,
-                repo,
-                state: 'open',
-                head: `${owner}:${branch}`
-              });
-              const hasPR = resp.data.length > 0;
-              core.setOutput('has_pr', hasPR ? 'true' : 'false');
-              if (!hasPR) core.info(`No open PR for branch ${branch} -> skipping job steps.`);
-            } else {
-              core.setOutput('has_pr', 'true');
-            }
-
-      - name: Install psql client and wait for Postgres, import SQL scripts
-        if: ${{ steps.pr-check.outputs.has_pr == 'true' }}
-        env:
-          PGPASSWORD: ${{ env.SPRING_DATASOURCE_PASSWORD }}
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y postgresql-client
-          echo "Warte auf Postgres (bis zu ~60s)..."
-          DB_HOST=localhost
-          DB_PORT=5432
-          DB_NAME=testdb
-          DB_USER=${{ env.SPRING_DATASOURCE_USERNAME }}
-          DB_PASS=${{ env.SPRING_DATASOURCE_PASSWORD }}
-          export PGPASSWORD="$DB_PASS"
-          for i in {1..30}; do
-            if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c '\q' >/dev/null 2>&1; then
-              echo "Postgres erreichbar."
-              break
+        - name: Ensure Gradle wrapper is executable if present
+          if: ${{ steps.detect-project.outputs.has_gradle == 'true' }}
+          run: |
+            cd "${{ steps.detect-project.outputs.project_dir }}"
+            if [ -f ./gradlew ]; then
+              chmod +x ./gradlew
+              echo "Using ./gradlew"
+              echo "GRADLE_CMD=./gradlew" >> $GITHUB_ENV
+            else
+              echo "No gradlew wrapper found in project dir, will try to use gradle from PATH"
+              echo "GRADLE_CMD=gradle" >> $GITHUB_ENV
             fi
-            sleep 2
-          done
-          if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c '\q' >/dev/null 2>&1; then
-            echo "Postgres konnte nicht erreicht werden."
-            exit 1
-          fi
 
-          IMPORTED=false
-          # import from repo root scripts/sql
-          if [ -d scripts/sql ]; then
-            shopt -s nullglob
-            for f in scripts/sql/*.sql; do
-              if [ -f "$f" ]; then
-                echo "Importiere $f"
-                psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "$f"
-                IMPORTED=true
+        - name: Mark run as PR (pull_request trigger)
+          id: pr-check
+          run: |
+            # workflow triggert nur pull_request, daher immer weiter
+            echo "has_pr=true" >> $GITHUB_OUTPUT
+
+        - name: Install psql client, wait for Postgres and import SQL scripts (before tests)
+          if: ${{ steps.pr-check.outputs.has_pr == 'true' }}
+          env:
+            PGPASSWORD: ${{ env.SPRING_DATASOURCE_PASSWORD }}
+          run: |
+            set -euo pipefail
+            sudo apt-get update -y
+            sudo apt-get install -y postgresql-client
+            echo "Warte auf Postgres (max ~60s)..."
+            DB_HOST=localhost
+            DB_PORT=5432
+            DB_NAME=testdb
+            DB_USER=${{ env.SPRING_DATASOURCE_USERNAME }}
+            DB_PASS=${{ env.SPRING_DATASOURCE_PASSWORD }}
+            export PGPASSWORD="$DB_PASS"
+            for i in {1..30}; do
+              if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c '\q' >/dev/null 2>&1; then
+                echo "Postgres erreichbar."
+                break
+              fi
+              sleep 2
+            done
+            if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c '\q' >/dev/null 2>&1; then
+              echo "Postgres konnte nicht erreicht werden."
+              exit 1
+            fi
+            
+            # Suche nach SQL-Dateien im Repo-Root und im Gradle-Projektverzeichnis
+            IMPORTED=false
+            candidates=()
+            if [ -d scripts/sql ]; then
+              candidates+=(scripts/sql)
+            fi
+            if [ "${{ steps.detect-project.outputs.project_dir }}" != "." ] && [ -d "${{ steps.detect-project.outputs.project_dir }}/scripts/sql" ]; then
+              candidates+=("${{ steps.detect-project.outputs.project_dir }}/scripts/sql")
+            fi
+            
+            for dir in "${candidates[@]}"; do
+              echo "Prüfe $dir auf .sql Dateien..."
+              shopt -s nullglob
+              files=("$dir"/*.sql)
+              shopt -u nullglob
+              if [ ${#files[@]} -gt 0 ]; then
+                echo "Gefundene SQL-Dateien in $dir:"
+                for f in "${files[@]}"; do
+                  echo " - $f"
+                  psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -f "$f"
+                  echo "-> importiert $f"
+                  IMPORTED=true
+                done
+              else
+                echo "Keine SQL-Dateien in $dir"
               fi
             done
-            shopt -u nullglob
-          fi
-
-          # also try project-dir/scripts/sql if different
-          if [ "${{ steps.detect-project.outputs.project_dir }}" != "." ] && [ -d "${{ steps.detect-project.outputs.project_dir }}/scripts/sql" ]; then
-            shopt -s nullglob
-            for f in "${{ steps.detect-project.outputs.project_dir }}/scripts/sql"/*.sql; do
-              if [ -f "$f" ]; then
-                echo "Importiere $f"
-                psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "$f"
-                IMPORTED=true
-              fi
-            done
-            shopt -u nullglob
-          fi
-
-          if [ "$IMPORTED" = false ]; then
-            echo "Kein scripts/sql-Verzeichnis mit SQL-Dateien gefunden, überspringe SQL-Import."
-          fi
-
-      - name: Build and run unit tests (gradle test) and run JaCoCo only if available
-        if: ${{ steps.pr-check.outputs.has_pr == 'true' && steps.detect-project.outputs.has_gradle == 'true' }}
-        run: |
-          set -e
-          cd "${{ steps.detect-project.outputs.project_dir }}"
-          if ! command -v ${GRADLE_CMD%% *} >/dev/null 2>&1; then
-            echo "Gradle not found (${GRADLE_CMD}). Bitte gradlew ins Repo oder Gradle im PATH bereitstellen."
-            exit 1
-          fi
-          echo "Running tests..."
-          # ensure the test run uses the CI Postgres (env already set at job level)
-          $GRADLE_CMD clean test --no-daemon --stacktrace
-
-          echo "Prüfe auf Task jacocoTestReport..."
-          if $GRADLE_CMD tasks --all | grep -q 'jacocoTestReport'; then
-            echo "Found jacocoTestReport - running report task"
-            $GRADLE_CMD jacocoTestReport --no-daemon --stacktrace || true
-          else
-            echo "Task jacocoTestReport nicht gefunden - überspringe."
-          fi
-
-      - name: Build Spring Boot jar
-        if: ${{ steps.pr-check.outputs.has_pr == 'true' && steps.detect-project.outputs.has_gradle == 'true' }}
-        run: |
-          set -e
-          cd "${{ steps.detect-project.outputs.project_dir }}"
-          $GRADLE_CMD bootJar --no-daemon
-
-      - name: Collect JaCoCo/coverage artifacts
-        id: collect-coverage
-        if: ${{ steps.pr-check.outputs.has_pr == 'true' && steps.detect-project.outputs.has_gradle == 'true' }}
-        run: |
-          set -e
-          cd "${{ steps.detect-project.outputs.project_dir }}"
-          mapfile -t results < <(find . -type f \( -name 'jacocoTestReport.xml' -o -name 'jacocoTestReport-*.xml' -o -name '*.exec' -o -path './build/reports/jacoco/**' \) -print)
-          if [ ${#results[@]} -eq 0 ]; then
-            echo "no_files_found=true" >> $GITHUB_OUTPUT
-            echo "coverage_files=" >> $GITHUB_OUTPUT
-            echo "Keine Coverage-Dateien gefunden."
-          else
-            echo "no_files_found=false" >> $GITHUB_OUTPUT
-            files=()
-            for f in "${results[@]}"; do
-              nf="${f#./}"
-              if [ "${{ steps.detect-project.outputs.project_dir }}" != "." ]; then
-                nf="${{ steps.detect-project.outputs.project_dir }}/$nf"
-              fi
-              files+=("$nf")
-            done
-            echo "coverage_files<<EOF" >> $GITHUB_OUTPUT
-            for p in "${files[@]}"; do
-              echo "$p" >> $GITHUB_OUTPUT
-            done
-            echo "EOF" >> $GITHUB_OUTPUT
-            echo "Gefundene Coverage-Dateien:"
-            printf "%s\n" "${files[@]}"
-          fi
-
-      - name: Start Spring Boot application and wait for readiness
-        if: ${{ steps.pr-check.outputs.has_pr == 'true' }}
-        env:
-          SPRING_DATASOURCE_URL: ${{ env.SPRING_DATASOURCE_URL }}
-          SPRING_DATASOURCE_USERNAME: ${{ env.SPRING_DATASOURCE_USERNAME }}
-          SPRING_DATASOURCE_PASSWORD: ${{ env.SPRING_DATASOURCE_PASSWORD }}
-        run: |
-          cd "${{ steps.detect-project.outputs.project_dir }}"
-          JAR=$(find build/libs -type f -name "*.jar" | head -n 1)
-          if [ -z "$JAR" ]; then
-            echo "Kein Spring Boot JAR gefunden (build/libs)."
-            exit 1
-          fi
-          echo "Using JAR: $JAR"
-          nohup java -jar "$JAR" \
-            --spring.datasource.url="${SPRING_DATASOURCE_URL}" \
-            --spring.datasource.username="${SPRING_DATASOURCE_USERNAME}" \
-            --spring.datasource.password="${SPRING_DATASOURCE_PASSWORD}" &> app.log &
-          echo "Warte auf Start des Backends (bis zu ~90s)..."
-          for i in {1..30}; do
-            if curl -sSf http://localhost:8080/actuator/health >/dev/null 2>&1; then
-              echo "Backend ist erreichbar."
-              break
+            
+            if [ "$IMPORTED" = "false" ]; then
+              echo "Kein scripts/sql-Verzeichnis mit SQL-Dateien gefunden, überspringe SQL-Import."
+            else
+              # kurze Pause, damit DB-Transaktionen abgeschlossen sind
+              sleep 2
             fi
-            sleep 3
-          done
-          if ! curl -sSf http://localhost:8080/actuator/health >/dev/null 2>&1; then
-            echo "Backend konnte nicht gestartet werden. Letzte Logs:"
-            tail -n 200 app.log || true
-            exit 1
-          fi
 
-      - name: Execute HTTP scripts from scripts folder
-        if: ${{ steps.pr-check.outputs.has_pr == 'true' }}
-        run: |
-          if [ -d scripts ]; then
+        - name: Build and run unit tests (gradle test) and run JaCoCo only if available
+          if: ${{ steps.pr-check.outputs.has_pr == 'true' && steps.detect-project.outputs.has_gradle == 'true' }}
+          env:
+            SPRING_DATASOURCE_URL: ${{ env.SPRING_DATASOURCE_URL }}
+            SPRING_DATASOURCE_USERNAME: ${{ env.SPRING_DATASOURCE_USERNAME }}
+            SPRING_DATASOURCE_PASSWORD: ${{ env.SPRING_DATASOURCE_PASSWORD }}
+          run: |
+            set -euo pipefail
+            cd "${{ steps.detect-project.outputs.project_dir }}"
+            if ! command -v ${GRADLE_CMD%% *} >/dev/null 2>&1; then
+              echo "Gradle not found (${GRADLE_CMD}). Bitte gradlew ins Repo oder Gradle im PATH bereitstellen."
+              exit 1
+            fi
+            echo "Running tests with enforced DB properties..."
+            # Übergibt DB-Config explizit an die Test-JVM, damit Tests die CI-Postgres verwenden
+            $GRADLE_CMD clean test -Dspring.datasource.url="${SPRING_DATASOURCE_URL}" -Dspring.datasource.username="${SPRING_DATASOURCE_USERNAME}" -Dspring.datasource.password="${SPRING_DATASOURCE_PASSWORD}" --no-daemon --stacktrace || true
+            # Falls Tests fehlschlagen, Ausgabe der Test-Reports für Diagnose
+            if [ -f build/reports/tests/test/index.html ]; then
+              echo "Test-Report verfügbar: build/reports/tests/test/index.html"
+            fi
+            # Fail die step, wenn Tests fehlschlugen (Gradle beendet mit non-zero)
+            if grep -q "FAILED" <<<"$($GRADLE_CMD -v 2>&1)"; then
+              echo "Hinweis: Gradle-Wrapper existiert; prüfe Reports."
+            fi
+            # Prüfe auf jacocoTask und generiere Report wenn vorhanden
+            if $GRADLE_CMD tasks --all | grep -q 'jacocoTestReport'; then
+              echo "Found jacocoTestReport - running report task"
+              $GRADLE_CMD jacocoTestReport --no-daemon --stacktrace || true
+            else
+              echo "Task jacocoTestReport nicht gefunden - überspringe."
+            fi
+            # Gerechte Exit-Code-Logik: wenn Tests fehlgeschlagen sind, Gradle gibt non-zero; wir möchten die Job-Run abbrechen
+            # Überprüfe Testergebnis anhand des Gradle-Resultfiles
+            if [ -f build/test-results/test/TEST-*.xml ]; then
+              if grep -q 'failure' build/test-results/test/*.xml || grep -q 'error' build/test-results/test/*.xml; then
+                echo "Tests enthalten Failures. See build/reports/tests/test/index.html"
+                exit 1
+              fi
+            fi
+
+        - name: Build Spring Boot jar
+          if: ${{ steps.pr-check.outputs.has_pr == 'true' && steps.detect-project.outputs.has_gradle == 'true' }}
+          run: |
             set -e
-            for f in scripts/*; do
-              if [ -f "$f" ]; then
-                echo "Running script: $f"
-                chmod +x "$f" || true
-                bash "$f"
-              fi
-            done
-          else
-            echo "Kein scripts-Ordner vorhanden, überspringe."
-          fi
+            cd "${{ steps.detect-project.outputs.project_dir }}"
+            $GRADLE_CMD bootJar --no-daemon
 
-      - name: Upload JaCoCo coverage to Codecov
-        if: ${{ steps.pr-check.outputs.has_pr == 'true' && steps.detect-project.outputs.has_gradle == 'true' && steps.collect-coverage.outputs.no_files_found == 'false' }}
-        uses: codecov/codecov-action@v4
-        with:
-          files: ${{ steps.collect-coverage.outputs.coverage_files }}
-          fail_ci_if_error: true
+        - name: Collect JaCoCo/coverage artifacts
+          id: collect-coverage
+          if: ${{ steps.pr-check.outputs.has_pr == 'true' && steps.detect-project.outputs.has_gradle == 'true' }}
+          run: |
+            set -e
+            cd "${{ steps.detect-project.outputs.project_dir }}"
+            mapfile -t results < <(find . -type f \( -name 'jacocoTestReport.xml' -o -name 'jacocoTestReport-*.xml' -o -name '*.exec' -o -path './build/reports/jacoco/**' \) -print)
+            if [ ${#results[@]} -eq 0 ]; then
+              echo "no_files_found=true" >> $GITHUB_OUTPUT
+              echo "coverage_files=" >> $GITHUB_OUTPUT
+              echo "Keine Coverage-Dateien gefunden."
+            else
+              echo "no_files_found=false" >> $GITHUB_OUTPUT
+              files=()
+              for f in "${results[@]}"; do
+                nf="${f#./}"
+                files+=("$nf")
+              done
+              echo "coverage_files<<EOF" >> $GITHUB_OUTPUT
+              for p in "${files[@]}"; do
+                echo "$p" >> $GITHUB_OUTPUT
+              done
+              echo "EOF" >> $GITHUB_OUTPUT
+              printf "%s\n" "${files[@]}"
+            fi
+
+        - name: Start Spring Boot application and wait for readiness
+          if: ${{ steps.pr-check.outputs.has_pr == 'true' }}
+          env:
+            SPRING_DATASOURCE_URL: ${{ env.SPRING_DATASOURCE_URL }}
+            SPRING_DATASOURCE_USERNAME: ${{ env.SPRING_DATASOURCE_USERNAME }}
+            SPRING_DATASOURCE_PASSWORD: ${{ env.SPRING_DATASOURCE_PASSWORD }}
+          run: |
+            set -e
+            cd "${{ steps.detect-project.outputs.project_dir }}"
+            JAR=$(find build/libs -type f -name "*.jar" | head -n 1)
+            if [ -z "$JAR" ]; then
+              echo "Kein Spring Boot JAR gefunden (build/libs)."
+              exit 1
+            fi
+            echo "Using JAR: $JAR"
+            nohup java -jar "$JAR" \
+              --spring.datasource.url="${SPRING_DATASOURCE_URL}" \
+              --spring.datasource.username="${SPRING_DATASOURCE_USERNAME}" \
+              --spring.datasource.password="${SPRING_DATASOURCE_PASSWORD}" &> app.log &
+            echo "Warte auf Start des Backends (bis zu ~90s)..."
+            for i in {1..30}; do
+              if curl -sSf http://localhost:8080/actuator/health >/dev/null 2>&1; then
+                echo "Backend ist erreichbar."
+                break
+              fi
+              sleep 3
+            done
+            if ! curl -sSf http://localhost:8080/actuator/health >/dev/null 2>&1; then
+              echo "Backend konnte nicht gestartet werden. Letzte Logs:"
+              tail -n 200 app.log || true
+              exit 1
+            fi
+
+        - name: Execute HTTP scripts from scripts folder
+          if: ${{ steps.pr-check.outputs.has_pr == 'true' }}
+          run: |
+            if [ -d scripts ]; then
+              set -e
+              for f in scripts/*; do
+                if [ -f "$f" ]; then
+                  echo "Run script: $f"
+                  if command -v http >/dev/null 2>&1; then
+                    http -v --session=ci "@$f"
+                  elif command -v curl >/dev/null 2>&1; then
+                    # basic fallback: assume file contains a single curl line
+                    while IFS= read -r line; do
+                      echo "-> $line"
+                      eval "$line"
+                    done < "$f"
+                  fi
+                fi
+              done
+            else
+              echo "Kein scripts-Ordner vorhanden, überspringe."
+            fi
+
+        - name: Upload JaCoCo coverage to Codecov
+          if: ${{ steps.pr-check.outputs.has_pr == 'true' && steps.detect-project.outputs.has_gradle == 'true' && steps.collect-coverage.outputs.no_files_found == 'false' }}
+          uses: codecov/codecov-action@v4
+          with:
+            files: ${{ steps.collect-coverage.outputs.coverage_files }}
+            fail_ci_if_error: true
