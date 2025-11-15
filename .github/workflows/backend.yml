@@ -318,8 +318,10 @@ jobs:
           fi
 
       - name: Upload JaCoCo coverage to Codecov
-        if: ${{ steps.pr-check.outputs.has_pr == 'true' && steps.detect-project.outputs.has_gradle == 'true' && steps.collect-coverage.outputs.no_files_found == 'false' }}
         uses: codecov/codecov-action@v4
         with:
-          files: ${{ steps.collect-coverage.outputs.coverage_files }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: apps/auth-backend/build/reports/jacoco/test/jacocoTestReport.xml
+          flags: backend
           fail_ci_if_error: true
+          verbose: true
