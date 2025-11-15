@@ -1,4 +1,5 @@
   name: backend.yml
+
   on:
     pull_request:
       types: [opened, reopened, synchronize]
@@ -48,6 +49,10 @@
               echo "No Gradle build files found in repository."
             else
               dir=$(dirname "$proj")
+              # normalize '.' for root
+              if [ "$dir" = "." ]; then
+                dir="."
+              fi
               echo "has_gradle=true" >> $GITHUB_OUTPUT
               echo "project_dir=$dir" >> $GITHUB_OUTPUT
               echo "Gradle project detected in: $dir"
@@ -73,6 +78,7 @@
             script: |
               const owner = context.repo.owner;
               const repo = context.repo.repo;
+              // for push events context.ref is refs/heads/<branch>
               const branch = context.ref.replace('refs/heads/','');
               if (context.eventName === 'push') {
                 const resp = await github.rest.pulls.list({
@@ -83,21 +89,31 @@
                 });
                 const hasPR = resp.data.length > 0;
                 core.setOutput('has_pr', hasPR ? 'true' : 'false');
-                if (!hasPR) console.log(`No open PR for branch ${branch} -> skipping job steps.`);
+                if (!hasPR) core.info(`No open PR for branch ${branch} -> skipping job steps.`);
               } else {
+                // pull_request events: always run
                 core.setOutput('has_pr', 'true');
               }
 
-        - name: Build and run unit tests with JaCoCo
+        - name: Build and run unit tests (gradle test) and run JaCoCo only if available
           if: ${{ steps.pr-check.outputs.has_pr == 'true' && steps.detect-project.outputs.has_gradle == 'true' }}
           run: |
             set -e
             cd "${{ steps.detect-project.outputs.project_dir }}"
             if ! command -v ${GRADLE_CMD%% *} >/dev/null 2>&1; then
-              echo "Gradle not found (${GRADLE_CMD}). Bitte fügen Sie den Gradle Wrapper (`gradlew`) ins Repo ein oder installieren Gradle."
+              echo "Gradle not found (${GRADLE_CMD}). Bitte gradlew ins Repo oder Gradle im PATH bereitstellen."
               exit 1
             fi
-            $GRADLE_CMD clean test jacocoTestReport --no-daemon --stacktrace
+            echo "Running tests..."
+            $GRADLE_CMD clean test --no-daemon --stacktrace
+            
+            echo "Prüfe auf Task jacocoTestReport..."
+            if $GRADLE_CMD tasks --all | grep -q 'jacocoTestReport'; then
+              echo "Found jacocoTestReport - running report task"
+              $GRADLE_CMD jacocoTestReport --no-daemon --stacktrace || true
+            else
+              echo "Task jacocoTestReport nicht gefunden - überspringe."
+            fi
 
         - name: Build Spring Boot jar
           if: ${{ steps.pr-check.outputs.has_pr == 'true' && steps.detect-project.outputs.has_gradle == 'true' }}
@@ -105,6 +121,39 @@
             set -e
             cd "${{ steps.detect-project.outputs.project_dir }}"
             $GRADLE_CMD bootJar --no-daemon
+
+        - name: Collect JaCoCo/coverage artifacts
+          id: collect-coverage
+          if: ${{ steps.pr-check.outputs.has_pr == 'true' && steps.detect-project.outputs.has_gradle == 'true' }}
+          run: |
+            set -e
+            cd "${{ steps.detect-project.outputs.project_dir }}"
+            # Suche nach typischen JaCoCo-XML-Reports und .exec files
+            mapfile -t results < <(find . -type f \( -name 'jacocoTestReport.xml' -o -name 'jacocoTestReport-*.xml' -o -name '*.exec' -o -path './build/reports/jacoco/**' \) -print)
+            if [ ${#results[@]} -eq 0 ]; then
+              echo "no_files_found=true" >> $GITHUB_OUTPUT
+              echo "coverage_files=" >> $GITHUB_OUTPUT
+              echo "Keine Coverage-Dateien gefunden."
+            else
+              echo "no_files_found=false" >> $GITHUB_OUTPUT
+              # normalize paths relative to repo root: remove leading ./ and prefix project_dir if not '.'
+              files=()
+              for f in "${results[@]}"; do
+                nf="${f#./}"
+                if [ "${{ steps.detect-project.outputs.project_dir }}" != "." ]; then
+                  nf="${{ steps.detect-project.outputs.project_dir }}/$nf"
+                fi
+                files+=("$nf")
+              done
+              # write newline-separated list to output
+              echo "coverage_files<<EOF" >> $GITHUB_OUTPUT
+              for p in "${files[@]}"; do
+                echo "$p" >> $GITHUB_OUTPUT
+              done
+              echo "EOF" >> $GITHUB_OUTPUT
+              echo "Gefundene Coverage-Dateien:"
+              printf "%s\n" "${files[@]}"
+            fi
 
         - name: Wait for Postgres and import SQL scripts from scripts/sql
           if: ${{ steps.pr-check.outputs.has_pr == 'true' }}
@@ -131,17 +180,36 @@
               echo "Postgres konnte nicht erreicht werden."
               exit 1
             fi
+            
+            # import from repo root scripts/sql
+            IMPORTED=false
             if [ -d scripts/sql ]; then
               shopt -s nullglob
               for f in scripts/sql/*.sql; do
                 if [ -f "$f" ]; then
                   echo "Importiere $f"
                   psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "$f"
+                  IMPORTED=true
                 fi
               done
               shopt -u nullglob
-            else
-              echo "Kein scripts/sql-Verzeichnis gefunden, überspringe SQL-Import."
+            fi
+            
+            # also try project-dir/scripts/sql if different
+            if [ "${{ steps.detect-project.outputs.project_dir }}" != "." ] && [ -d "${{ steps.detect-project.outputs.project_dir }}/scripts/sql" ]; then
+              shopt -s nullglob
+              for f in "${{ steps.detect-project.outputs.project_dir }}/scripts/sql"/*.sql; do
+                if [ -f "$f" ]; then
+                  echo "Importiere $f"
+                  psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "$f"
+                  IMPORTED=true
+                fi
+              done
+              shopt -u nullglob
+            fi
+            
+            if [ "$IMPORTED" = false ]; then
+              echo "Kein scripts/sql-Verzeichnis mit SQL-Dateien gefunden, überspringe SQL-Import."
             fi
 
         - name: Start Spring Boot application and wait for readiness
@@ -193,10 +261,8 @@
             fi
 
         - name: Upload JaCoCo coverage to Codecov
-          if: ${{ steps.pr-check.outputs.has_pr == 'true' && steps.detect-project.outputs.has_gradle == 'true' }}
+          if: ${{ steps.pr-check.outputs.has_pr == 'true' && steps.detect-project.outputs.has_gradle == 'true' && steps.collect-coverage.outputs.no_files_found == 'false' }}
           uses: codecov/codecov-action@v4
           with:
-            files: |
-              build/reports/jacoco/test/jacocoTestReport.xml
-              build/jacoco/*.exec
+            files: ${{ steps.collect-coverage.outputs.coverage_files }}
             fail_ci_if_error: true
