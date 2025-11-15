@@ -1,4 +1,4 @@
-name: backend.yml
+name: backend
 
 on:
   pull_request:
@@ -322,6 +322,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: apps/auth-backend/build/reports/jacoco/test/jacocoTestReport.xml
-          flags: backend
+          flags: backend-jacoco
+          name: backend-jacoco
           fail_ci_if_error: true
           verbose: true

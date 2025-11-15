@@ -4,6 +4,9 @@ const { createCjsPreset } = require('jest-preset-angular/presets');
 const config = {
   ...createCjsPreset(),
 
+  collectCoverage: true,
+  coverageDirectory: 'playwright/coverage',
+  coverageReporters: ['lcov', 'text', 'text-summary'],
   testEnvironment: 'jsdom',
 
   setupFilesAfterEnv: ['<rootDir>/setup-jest.ts'],
@@ -12,6 +15,7 @@ const config = {
     '<rootDir>/node_modules/',
     '<rootDir>/dist/',
     '<rootDir>/src/test.ts',
+    '<rootDir>/playwright/',
   ],
 
   moduleNameMapper: {
