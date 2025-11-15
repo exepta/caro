@@ -13,6 +13,15 @@ spring:
   flyway:
     locations: classpath:db/migration
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
 jwt:
   issuer: "realtime-platform"
   access-ttl-minutes: 15
