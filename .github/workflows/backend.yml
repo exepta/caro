@@ -1,4 +1,3 @@
-# yaml
 name: backend.yml
 
 on:
@@ -43,7 +42,7 @@ jobs:
       - name: Detect Gradle project directory
         id: detect-project
         run: |
-          proj=$(git ls-files | grep -E '(^|/)(settings.gradle|settings.gradle.kts|build.gradle|build.gradle.kts)' | head -n1 || true)
+          proj=$(git ls-files | grep -E '(^|/)(settings\.gradle|settings\.gradle\.kts|build\.gradle|build\.gradle\.kts)' | head -n1 || true)
           if [ -z "$proj" ]; then
             echo "has_gradle=false" >> $GITHUB_OUTPUT
             echo "project_dir=." >> $GITHUB_OUTPUT
@@ -77,6 +76,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update -y
           sudo apt-get install -y postgresql-client
+
           echo "Warte auf Postgres (max ~60s)..."
           DB_HOST=localhost
           DB_PORT=5432
@@ -98,6 +98,7 @@ jobs:
             exit 1
           fi
 
+          # SQL-Dirs suchen
           SQL_DIRS=()
           [ -d scripts/sql ] && SQL_DIRS+=(scripts/sql)
           if [ "${{ steps.detect-project.outputs.project_dir }}" != "." ] && [ -d "${{ steps.detect-project.outputs.project_dir }}/scripts/sql" ]; then
@@ -116,13 +117,13 @@ jobs:
             echo "Gefundene SQL-Dateien in $dir:"
             for f in "${files[@]}"; do echo " - $f"; done
 
-            # Importiere users.sql zuerst, falls vorhanden
+            # users.sql zuerst, falls vorhanden
             if [ -f "$dir/users.sql" ]; then
               echo "Importiere $dir/users.sql (zuerst)"
               psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -f "$dir/users.sql"
             fi
 
-            # Importiere die restlichen Dateien (außer users.sql)
+            # restliche Dateien (außer users.sql)
             for f in "${files[@]}"; do
               base=$(basename "$f")
               if [ "$base" = "users.sql" ]; then
@@ -155,7 +156,11 @@ jobs:
             exit 1
           fi
           echo "Running tests with enforced DB properties..."
-          $GRADLE_CMD clean test -Dspring.datasource.url="${SPRING_DATASOURCE_URL}" -Dspring.datasource.username="${SPRING_DATASOURCE_USERNAME}" -Dspring.datasource.password="${SPRING_DATASOURCE_PASSWORD}" --no-daemon --stacktrace
+          $GRADLE_CMD clean test \
+            -Dspring.datasource.url="${SPRING_DATASOURCE_URL}" \
+            -Dspring.datasource.username="${SPRING_DATASOURCE_USERNAME}" \
+            -Dspring.datasource.password="${SPRING_DATASOURCE_PASSWORD}" \
+            --no-daemon --stacktrace
 
           if $GRADLE_CMD tasks --all | grep -q 'jacocoTestReport'; then
             echo "Found jacocoTestReport - running report task"
@@ -225,11 +230,17 @@ jobs:
           rm -f app.log app.err app.pid
           touch app.log app.err
 
-          # Starten, stdout/stderr in Dateien umleiten, PID speichern
+          # Spring Boot im Hintergrund starten, Logs in Dateien
+          nohup java -jar "$JAR" \
+            --spring.datasource.url="${SPRING_DATASOURCE_URL}" \
+            --spring.datasource.username="${SPRING_DATASOURCE_USERNAME}" \
+            --spring.datasource.password="${SPRING_DATASOURCE_PASSWORD}" \
+            --server.port=8080 \
+            > app.log 2> app.err &
 
           PID=$!
           echo "$PID" > app.pid
-          sleep 2
+          sleep 5
 
           echo "PID: $PID"
           if ! kill -0 "$PID" >/dev/null 2>&1; then
@@ -255,7 +266,7 @@ jobs:
 
           for i in $(seq 1 60); do
             echo "Check $i/60..."
-            ss -ltnp | sed -n '1,200p' || true
+            ss -ltnp | sed -n '1,50p' || true
             status=$(curl -sS -D "$TMP_HDR" -o "$TMP_BODY" -w "%{http_code}" "$HEALTH_URL" || true)
             echo "HTTP status: $status"
 
