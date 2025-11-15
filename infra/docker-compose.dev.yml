@@ -12,6 +12,7 @@ services:
     volumes:
       - db-data:/var/lib/postgresql
       - ../scripts/sql/users.sql:/docker-entrypoint-initdb.d/01-users.sql:ro
+      - ../scripts/sql/refresh-tokens.sql:/docker-entrypoint-initdb.d/02-refresh-tokens.sql:ro
 
 volumes:
   db-data:
