@@ -214,6 +214,7 @@
               exit 1
             fi
             echo "Using JAR: $JAR"
+            
             nohup java -jar "$JAR" \
               --spring.datasource.url="${SPRING_DATASOURCE_URL}" \
               --spring.datasource.username="${SPRING_DATASOURCE_USERNAME}" \
@@ -221,20 +222,39 @@
               --spring.security.user.name="${SPRING_BOOT_USER}" \
               --spring.security.user.password="${SPRING_BOOT_PASSWORD}" \
               --management.endpoints.web.exposure.include=health,info \
-              --management.endpoint.health.show-details=never &> app.log &
+              --management.endpoint.health.show-details=never \
+              --management.server.port=8080 &> app.log &
             
-            echo "Warte auf Start des Backends (bis zu ~90s)..."
-            for i in {1..30}; do
-              if curl -sSf -u "${SPRING_BOOT_USER}:${SPRING_BOOT_PASSWORD}" http://localhost:8080/actuator/health >/dev/null 2>&1; then
+            echo "Warte auf Start des Backends (bis zu ~180s)..."
+            OK=0
+            HEALTH_URL="http://localhost:8080/actuator/health"
+            TMP_HDR="/tmp/actuator.headers"
+            TMP_BODY="/tmp/actuator.body"
+            
+            for i in $(seq 1 60); do
+              echo "Check $i/60..."
+              status=$(curl -sS -u "${SPRING_BOOT_USER}:${SPRING_BOOT_PASSWORD}" -D "$TMP_HDR" -o "$TMP_BODY" -w "%{http_code}" "$HEALTH_URL" || true)
+              echo "HTTP status: $status"
+              if [ "$status" = "200" ]; then
                 echo "Backend ready."
+                OK=1
                 break
               fi
               sleep 3
             done
             
-            if ! curl -sSf -u "${SPRING_BOOT_USER}:${SPRING_BOOT_PASSWORD}" http://localhost:8080/actuator/health >/dev/null 2>&1; then
-              echo "Backend konnte nicht gestartet werden. Letzte Logs:"
+            if [ "$OK" -ne 1 ]; then
+              echo "Backend konnte nicht gestartet werden - Diagnose:"
+              echo "==== Zuletzt 200 Zeilen app.log ===="
               tail -n 200 app.log || true
+              echo "==== Listening TCP sockets (ss -ltnp) ===="
+              ss -ltnp || true
+              echo "==== Java Prozesse ===="
+              ps aux | grep java | grep -v grep || true
+              echo "==== Actuator response headers (/tmp/actuator.headers) ===="
+              [ -f "$TMP_HDR" ] && sed -n '1,200p' "$TMP_HDR" || echo "keine headers"
+              echo "==== Actuator response body (/tmp/actuator.body) ===="
+              [ -f "$TMP_BODY" ] && sed -n '1,200p' "$TMP_BODY" || echo "keine body"
               exit 1
             fi
 
