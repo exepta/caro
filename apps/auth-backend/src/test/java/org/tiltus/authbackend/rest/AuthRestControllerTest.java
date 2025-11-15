@@ -1,4 +1,3 @@
-// language: java
 package org.tiltus.authbackend.rest;
 
 import io.jsonwebtoken.Claims;
@@ -125,7 +124,6 @@ class AuthRestControllerTest {
         UUID uid = UUID.randomUUID();
         RefreshRequest req = new RefreshRequest(providedRefresh);
 
-        // mock parsed JWS and claims
         @SuppressWarnings("unchecked")
         Jws<Claims> jws = mock(Jws.class);
         Claims claims = mock(Claims.class);

@@ -1,0 +1,328 @@
+name: backend
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  build-and-integration:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: testdb
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/testdb
+      SPRING_DATASOURCE_USERNAME: test
+      SPRING_DATASOURCE_PASSWORD: password
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21 (Temurin) and cache Gradle
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Detect Gradle project directory
+        id: detect-project
+        run: |
+          proj=$(git ls-files | grep -E '(^|/)(settings\.gradle|settings\.gradle\.kts|build\.gradle|build\.gradle\.kts)' | head -n1 || true)
+          if [ -z "$proj" ]; then
+            echo "has_gradle=false" >> $GITHUB_OUTPUT
+            echo "project_dir=." >> $GITHUB_OUTPUT
+          else
+            dir=$(dirname "$proj")
+            echo "has_gradle=true" >> $GITHUB_OUTPUT
+            echo "project_dir=$dir" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Ensure Gradle wrapper is executable if present
+        if: ${{ steps.detect-project.outputs.has_gradle == 'true' }}
+        run: |
+          cd "${{ steps.detect-project.outputs.project_dir }}"
+          if [ -f ./gradlew ]; then
+            chmod +x ./gradlew
+            echo "GRADLE_CMD=./gradlew" >> $GITHUB_ENV
+          else
+            echo "GRADLE_CMD=gradle" >> $GITHUB_ENV
+          fi
+
+      - name: Mark run as PR (pull_request trigger)
+        id: pr-check
+        run: |
+          echo "has_pr=true" >> $GITHUB_OUTPUT
+
+      - name: Install psql client, wait for Postgres and import SQL scripts (before tests)
+        if: ${{ steps.pr-check.outputs.has_pr == 'true' }}
+        env:
+          PGPASSWORD: ${{ env.SPRING_DATASOURCE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client
+
+          echo "Warte auf Postgres (max ~60s)..."
+          DB_HOST=localhost
+          DB_PORT=5432
+          DB_NAME=testdb
+          DB_USER=${{ env.SPRING_DATASOURCE_USERNAME }}
+          DB_PASS=${{ env.SPRING_DATASOURCE_PASSWORD }}
+          export PGPASSWORD="$DB_PASS"
+
+          for i in {1..30}; do
+            if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c '\q' >/dev/null 2>&1; then
+              echo "Postgres erreichbar."
+              break
+            fi
+            sleep 2
+          done
+
+          if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c '\q' >/dev/null 2>&1; then
+            echo "Postgres konnte nicht erreicht werden."
+            exit 1
+          fi
+
+          # SQL-Dirs suchen
+          SQL_DIRS=()
+          [ -d scripts/sql ] && SQL_DIRS+=(scripts/sql)
+          if [ "${{ steps.detect-project.outputs.project_dir }}" != "." ] && [ -d "${{ steps.detect-project.outputs.project_dir }}/scripts/sql" ]; then
+            SQL_DIRS+=("${{ steps.detect-project.outputs.project_dir }}/scripts/sql")
+          fi
+
+          IMPORTED=false
+          for dir in "${SQL_DIRS[@]}"; do
+            shopt -s nullglob
+            files=("$dir"/*.sql)
+            shopt -u nullglob
+            if [ ${#files[@]} -eq 0 ]; then
+              continue
+            fi
+
+            echo "Gefundene SQL-Dateien in $dir:"
+            for f in "${files[@]}"; do echo " - $f"; done
+
+            # users.sql zuerst, falls vorhanden
+            if [ -f "$dir/users.sql" ]; then
+              echo "Importiere $dir/users.sql (zuerst)"
+              psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -f "$dir/users.sql"
+            fi
+
+            # restliche Dateien (außer users.sql)
+            for f in "${files[@]}"; do
+              base=$(basename "$f")
+              if [ "$base" = "users.sql" ]; then
+                continue
+              fi
+              echo "Importiere $f"
+              psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -f "$f"
+            done
+
+            IMPORTED=true
+          done
+
+          if [ "$IMPORTED" = "false" ]; then
+            echo "Kein scripts/sql-Verzeichnis mit SQL-Dateien gefunden, überspringe SQL-Import."
+          else
+            sleep 2
+          fi
+
+      - name: Build and run unit tests (gradle test) and run JaCoCo only if available
+        if: ${{ steps.pr-check.outputs.has_pr == 'true' && steps.detect-project.outputs.has_gradle == 'true' }}
+        env:
+          SPRING_DATASOURCE_URL: ${{ env.SPRING_DATASOURCE_URL }}
+          SPRING_DATASOURCE_USERNAME: ${{ env.SPRING_DATASOURCE_USERNAME }}
+          SPRING_DATASOURCE_PASSWORD: ${{ env.SPRING_DATASOURCE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          cd "${{ steps.detect-project.outputs.project_dir }}"
+          if [ -z "${GRADLE_CMD:-}" ]; then
+            echo "GRADLE_CMD not set"
+            exit 1
+          fi
+          echo "Running tests with enforced DB properties..."
+          $GRADLE_CMD clean test \
+            -Dspring.datasource.url="${SPRING_DATASOURCE_URL}" \
+            -Dspring.datasource.username="${SPRING_DATASOURCE_USERNAME}" \
+            -Dspring.datasource.password="${SPRING_DATASOURCE_PASSWORD}" \
+            --no-daemon --stacktrace
+
+          if $GRADLE_CMD tasks --all | grep -q 'jacocoTestReport'; then
+            echo "Found jacocoTestReport - running report task"
+            $GRADLE_CMD jacocoTestReport --no-daemon --stacktrace || true
+          else
+            echo "Task jacocoTestReport nicht gefunden - überspringe."
+          fi
+
+      - name: Build Spring Boot jar
+        if: ${{ steps.pr-check.outputs.has_pr == 'true' && steps.detect-project.outputs.has_gradle == 'true' }}
+        run: |
+          set -euo pipefail
+          cd "${{ steps.detect-project.outputs.project_dir }}"
+          if [ -z "${GRADLE_CMD:-}" ]; then
+            echo "GRADLE_CMD not set"
+            exit 1
+          fi
+          $GRADLE_CMD bootJar --no-daemon --stacktrace
+
+      - name: Collect JaCoCo/coverage artifacts
+        id: collect-coverage
+        if: ${{ steps.pr-check.outputs.has_pr == 'true' && steps.detect-project.outputs.has_gradle == 'true' }}
+        run: |
+          set -euo pipefail
+          cd "${{ steps.detect-project.outputs.project_dir }}"
+          mapfile -t results < <(find . -type f \( -name 'jacocoTestReport.xml' -o -name 'jacocoTestReport-*.xml' -o -name '*.exec' -o -path './build/reports/jacoco/*' \) -print)
+          if [ ${#results[@]} -eq 0 ]; then
+            echo "no_files_found=true" >> $GITHUB_OUTPUT
+            echo "coverage_files=" >> $GITHUB_OUTPUT
+          else
+            echo "no_files_found=false" >> $GITHUB_OUTPUT
+            files=()
+            for f in "${results[@]}"; do
+              files+=("$(realpath --relative-to=. "$f")")
+            done
+            echo "coverage_files<<EOF" >> $GITHUB_OUTPUT
+            for p in "${files[@]}"; do
+              echo "$p"
+            done
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Start Spring Boot application and wait for readiness
+        if: ${{ steps.pr-check.outputs.has_pr == 'true' }}
+        env:
+          SPRING_DATASOURCE_URL: ${{ env.SPRING_DATASOURCE_URL }}
+          SPRING_DATASOURCE_USERNAME: ${{ env.SPRING_DATASOURCE_USERNAME }}
+          SPRING_DATASOURCE_PASSWORD: ${{ env.SPRING_DATASOURCE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set -x
+
+          cd "${{ steps.detect-project.outputs.project_dir }}"
+
+          echo "JAVA in PATH:"
+          which java || true
+          java -version || true
+
+          JAR=$(find build/libs -type f -name "*.jar" | head -n 1 || true)
+          if [ -z "$JAR" ]; then
+            echo "Kein Spring Boot JAR gefunden."
+            exit 1
+          fi
+          echo "Using JAR: $JAR"
+
+          # Saubere Log-Dateien
+          rm -f app.log app.err app.pid
+          touch app.log app.err
+
+          # Spring Boot im Hintergrund starten, Logs in Dateien
+          nohup java -jar "$JAR" \
+            --spring.datasource.url="${SPRING_DATASOURCE_URL}" \
+            --spring.datasource.username="${SPRING_DATASOURCE_USERNAME}" \
+            --spring.datasource.password="${SPRING_DATASOURCE_PASSWORD}" \
+            --server.port=8080 \
+            > app.log 2> app.err &
+
+          PID=$!
+          echo "$PID" > app.pid
+          sleep 5
+
+          echo "PID: $PID"
+          if ! kill -0 "$PID" >/dev/null 2>&1; then
+            echo "Java Prozess existiert nicht mehr. Zeige Diagnose:"
+            echo "==== app.log (erste 200 Zeilen) ===="
+            head -n 200 app.log || true
+            echo "==== app.err (erste 200 Zeilen) ===="
+            head -n 200 app.err || true
+            echo "==== ls -l app.log app.err ===="
+            ls -l app.log app.err || true
+            echo "==== Full last 200 lines of any logs ===="
+            tail -n 200 app.log || true
+            tail -n 200 app.err || true
+            exit 1
+          fi
+
+          echo "Java Prozess läuft. Warte auf Actuator (bis zu ~180s)..."
+
+          OK=0
+          HEALTH_URL="http://localhost:8080/actuator/health"
+          TMP_HDR="/tmp/actuator.headers"
+          TMP_BODY="/tmp/actuator.body"
+
+          for i in $(seq 1 60); do
+            echo "Check $i/60..."
+            ss -ltnp | sed -n '1,50p' || true
+            status=$(curl -sS -D "$TMP_HDR" -o "$TMP_BODY" -w "%{http_code}" "$HEALTH_URL" || true)
+            echo "HTTP status: $status"
+
+            if [ "$status" = "200" ]; then
+              echo "Backend ready."
+              OK=1
+              break
+            fi
+
+            echo "---- app.log (letzte 50 Zeilen) ----"
+            tail -n 50 app.log || true
+            echo "---- app.err (letzte 50 Zeilen) ----"
+            tail -n 50 app.err || true
+            echo "---- actuator body (first 500 chars) ----"
+            [ -f "$TMP_BODY" ] && head -c 500 "$TMP_BODY" || echo "(no body)"
+            echo
+            sleep 3
+          done
+
+          if [ "$OK" -ne 1 ]; then
+            echo "Backend konnte nicht gestartet werden - abschließende Diagnose:"
+            echo "==== app.log (letzte 200 Zeilen) ===="
+            tail -n 200 app.log || true
+            echo "==== app.err (letzte 200 Zeilen) ===="
+            tail -n 200 app.err || true
+            echo "==== Listening TCP sockets (ss -ltnp) ===="
+            ss -ltnp || true
+            echo "==== Java Prozesse ===="
+            ps aux | grep java | grep -v grep || true
+            echo "==== Actuator response headers ($TMP_HDR) ===="
+            [ -f "$TMP_HDR" ] && sed -n '1,200p' "$TMP_HDR" || echo "keine headers"
+            echo "==== Actuator response body ($TMP_BODY) ===="
+            [ -f "$TMP_BODY" ] && sed -n '1,200p' "$TMP_BODY" || echo "keine body"
+            exit 1
+          fi
+
+      - name: Execute shell scripts from scripts folder
+        if: ${{ steps.pr-check.outputs.has_pr == 'true' }}
+        run: |
+          set -euo pipefail
+          if [ -d scripts ]; then
+            for f in scripts/*.sh; do
+              [ -f "$f" ] || continue
+              echo "Run $f"
+              bash "$f"
+            done
+          else
+            echo "Kein scripts-Ordner vorhanden, überspringe."
+          fi
+
+      - name: Upload JaCoCo coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: apps/auth-backend/build/reports/jacoco/test/jacocoTestReport.xml
+          flags: backend-jacoco
+          name: backend-jacoco
+          fail_ci_if_error: true
+          verbose: true

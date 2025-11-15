@@ -25,3 +25,23 @@ In the postgres database there is now a table called `users`. This looks like th
 | password_hash | VARCHAR   | The password but in hash form                        |
 | created_at    | TIMESTAMP | Creation date of the account                         |
 | update_at     | TIMESTAMP | Last update date of the account                      |
+___
+
+### Playwright tests (e2e)
+
+You can use the script below if you are on linux. By arch linux you can have the problem that the default playwright script is not executable.
+I mean this `ǹpx playwright install` for the browser installation. 
+
+```bash
+    chmod +x ./playwright-test.sh
+    ./playwright-test.sh
+```
+
+### Frontend tests (unit)
+
+You can run the frontend tests with the following command.
+
+```bash
+    cd apps/web
+    pnpm test
+```
