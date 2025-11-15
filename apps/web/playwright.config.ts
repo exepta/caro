@@ -11,6 +11,25 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
 
+  reporter: [
+    ['list'],
+
+    [
+      'junit',
+      {
+        outputFile: 'playwright/test-results/playwright-junit.xml',
+      }
+    ],
+
+    [
+      'html',
+      {
+        outputFolder: 'playwright/test-results/html-report',
+        open: 'never',
+      }
+    ],
+  ],
+
   projects: [
     {
       name: 'chromium',

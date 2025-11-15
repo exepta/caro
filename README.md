@@ -29,12 +29,17 @@ ___
 
 ### Playwright tests (e2e)
 
+You can use the script below if you are on linux. By arch linux you can have the problem that the default playwright script is not executable.
+I mean this `ǹpx playwright install` for the browser installation. 
+
 ```bash
     chmod +x ./playwright-test.sh
     ./playwright-test.sh
 ```
 
 ### Frontend tests (unit)
+
+You can run the frontend tests with the following command.
 
 ```bash
     cd apps/web
