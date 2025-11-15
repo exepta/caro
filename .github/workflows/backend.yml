@@ -206,7 +206,14 @@ jobs:
           SPRING_DATASOURCE_PASSWORD: ${{ env.SPRING_DATASOURCE_PASSWORD }}
         run: |
           set -euo pipefail
+          set -x
+
           cd "${{ steps.detect-project.outputs.project_dir }}"
+
+          echo "JAVA in PATH:"
+          which java || true
+          java -version || true
+
           JAR=$(find build/libs -type f -name "*.jar" | head -n 1 || true)
           if [ -z "$JAR" ]; then
             echo "Kein Spring Boot JAR gefunden."
@@ -214,16 +221,41 @@ jobs:
           fi
           echo "Using JAR: $JAR"
 
-          # Disable Spring Security auto-configuration for CI readiness check
+          # Saubere Log-Dateien
+          rm -f app.log app.err app.pid
+          touch app.log app.err
+
+          # Starten, stdout/stderr in Dateien umleiten, PID speichern
           nohup java -jar "$JAR" \
             --spring.datasource.url="${SPRING_DATASOURCE_URL}" \
             --spring.datasource.username="${SPRING_DATASOURCE_USERNAME}" \
             --spring.datasource.password="${SPRING_DATASOURCE_PASSWORD}" \
             --management.endpoints.web.exposure.include=health,info \
             --management.endpoint.health.show-details=never \
-            --spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration &> app.log &
+            --spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration \
+            >> app.log 2>> app.err &
 
-          echo "Warte auf Start des Backends (bis zu ~180s)..."
+          PID=$!
+          echo "$PID" > app.pid
+          sleep 2
+
+          echo "PID: $PID"
+          if ! kill -0 "$PID" >/dev/null 2>&1; then
+            echo "Java Prozess existiert nicht mehr. Zeige Diagnose:"
+            echo "==== app.log (erste 200 Zeilen) ===="
+            head -n 200 app.log || true
+            echo "==== app.err (erste 200 Zeilen) ===="
+            head -n 200 app.err || true
+            echo "==== ls -l app.log app.err ===="
+            ls -l app.log app.err || true
+            echo "==== Full last 200 lines of any logs ===="
+            tail -n 200 app.log || true
+            tail -n 200 app.err || true
+            exit 1
+          fi
+
+          echo "Java Prozess läuft. Warte auf Actuator (bis zu ~180s)..."
+
           OK=0
           HEALTH_URL="http://localhost:8080/actuator/health"
           TMP_HDR="/tmp/actuator.headers"
@@ -231,31 +263,39 @@ jobs:
 
           for i in $(seq 1 60); do
             echo "Check $i/60..."
+            ss -ltnp | sed -n '1,200p' || true
             status=$(curl -sS -D "$TMP_HDR" -o "$TMP_BODY" -w "%{http_code}" "$HEALTH_URL" || true)
             echo "HTTP status: $status"
+
             if [ "$status" = "200" ]; then
               echo "Backend ready."
               OK=1
               break
             fi
-            # show short snippet on non-200 for quicker debugging in logs
-            echo "---- actuator body (first 200 chars) ----"
-            head -c 200 "$TMP_BODY" || true
+
+            echo "---- app.log (letzte 50 Zeilen) ----"
+            tail -n 50 app.log || true
+            echo "---- app.err (letzte 50 Zeilen) ----"
+            tail -n 50 app.err || true
+            echo "---- actuator body (first 500 chars) ----"
+            [ -f "$TMP_BODY" ] && head -c 500 "$TMP_BODY" || echo "(no body)"
             echo
             sleep 3
           done
 
           if [ "$OK" -ne 1 ]; then
-            echo "Backend konnte nicht gestartet werden - Diagnose:"
-            echo "==== Zuletzt 200 Zeilen app.log ===="
+            echo "Backend konnte nicht gestartet werden - abschließende Diagnose:"
+            echo "==== app.log (letzte 200 Zeilen) ===="
             tail -n 200 app.log || true
+            echo "==== app.err (letzte 200 Zeilen) ===="
+            tail -n 200 app.err || true
             echo "==== Listening TCP sockets (ss -ltnp) ===="
             ss -ltnp || true
             echo "==== Java Prozesse ===="
             ps aux | grep java | grep -v grep || true
-            echo "==== Actuator response headers (/tmp/actuator.headers) ===="
+            echo "==== Actuator response headers ($TMP_HDR) ===="
             [ -f "$TMP_HDR" ] && sed -n '1,200p' "$TMP_HDR" || echo "keine headers"
-            echo "==== Actuator response body (/tmp/actuator.body) ===="
+            echo "==== Actuator response body ($TMP_BODY) ===="
             [ -f "$TMP_BODY" ] && sed -n '1,200p' "$TMP_BODY" || echo "keine body"
             exit 1
           fi
