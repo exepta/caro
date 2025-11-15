@@ -226,14 +226,6 @@ jobs:
           touch app.log app.err
 
           # Starten, stdout/stderr in Dateien umleiten, PID speichern
-          nohup java -jar "$JAR" \
-            --spring.datasource.url="${SPRING_DATASOURCE_URL}" \
-            --spring.datasource.username="${SPRING_DATASOURCE_USERNAME}" \
-            --spring.datasource.password="${SPRING_DATASOURCE_PASSWORD}" \
-            --management.endpoints.web.exposure.include=health,info \
-            --management.endpoint.health.show-details=never \
-            --spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration \
-            >> app.log 2>> app.err &
 
           PID=$!
           echo "$PID" > app.pid
