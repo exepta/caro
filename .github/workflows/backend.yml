@@ -1,3 +1,4 @@
+# yaml
 name: backend.yml
 on:
   pull_request:
@@ -38,8 +39,16 @@ jobs:
           java-version: '21'
           cache: 'gradle'
 
-      - name: Ensure Gradle wrapper is executable
-        run: chmod +x ./gradlew
+      - name: Ensure Gradle wrapper is executable if present
+        run: |
+          if [ -f ./gradlew ]; then
+            chmod +x ./gradlew
+            echo "Using ./gradlew"
+            echo "GRADLE_CMD=./gradlew" >> $GITHUB_ENV
+          else
+            echo "No gradlew wrapper found, will try to use gradle from PATH"
+            echo "GRADLE_CMD=gradle" >> $GITHUB_ENV
+          fi
 
       - name: Detect whether this run should proceed (has open PR for branch or is a PR event)
         id: pr-check
@@ -66,11 +75,18 @@ jobs:
 
       - name: Build and run unit tests with JaCoCo
         if: ${{ steps.pr-check.outputs.has_pr == 'true' }}
-        run: ./gradlew clean test jacocoTestReport --no-daemon --stacktrace
+        run: |
+          set -e
+          # ensure gradle command exists
+          if ! command -v ${GRADLE_CMD%% *} >/dev/null 2>&1; then
+            echo "Gradle not found (${GRADLE_CMD}). Bitte fügen Sie den Gradle Wrapper (`gradlew`) ins Repo ein oder installieren Gradle."
+            exit 1
+          fi
+          $GRADLE_CMD clean test jacocoTestReport --no-daemon --stacktrace
 
       - name: Build Spring Boot jar
         if: ${{ steps.pr-check.outputs.has_pr == 'true' }}
-        run: ./gradlew bootJar --no-daemon
+        run: $GRADLE_CMD bootJar --no-daemon
 
       - name: Wait for Postgres and import SQL scripts from scripts/sql
         if: ${{ steps.pr-check.outputs.has_pr == 'true' }}
@@ -80,27 +96,32 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y postgresql-client
           echo "Warte auf Postgres (bis zu ~60s)..."
-          for i in {1..30}; do
-            if psql -h localhost -U ${{ env.SPRING_DATASOURCE_USERNAME }} -d ${{ env.SPRING_DATASOURCE_URL }} -c '\q' >/dev/null 2>&1; then
-              echo "Postgres erreichbar."
-              break
-            fi
-            sleep 2
-          done
-          # use known DB name from env
           DB_HOST=localhost
           DB_PORT=5432
           DB_NAME=testdb
           DB_USER=${{ env.SPRING_DATASOURCE_USERNAME }}
           DB_PASS=${{ env.SPRING_DATASOURCE_PASSWORD }}
           export PGPASSWORD="$DB_PASS"
+          for i in {1..30}; do
+            if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c '\q' >/dev/null 2>&1; then
+              echo "Postgres erreichbar."
+              break
+            fi
+            sleep 2
+          done
+          if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c '\q' >/dev/null 2>&1; then
+            echo "Postgres konnte nicht erreicht werden."
+            exit 1
+          fi
           if [ -d scripts/sql ]; then
+            shopt -s nullglob
             for f in scripts/sql/*.sql; do
               if [ -f "$f" ]; then
                 echo "Importiere $f"
                 psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "$f"
               fi
             done
+            shopt -u nullglob
           else
             echo "Kein scripts/sql-Verzeichnis gefunden, überspringe SQL-Import."
           fi
@@ -113,6 +134,10 @@ jobs:
           SPRING_DATASOURCE_PASSWORD: ${{ env.SPRING_DATASOURCE_PASSWORD }}
         run: |
           JAR=$(find build/libs -type f -name "*.jar" | head -n 1)
+          if [ -z "$JAR" ]; then
+            echo "Kein Spring Boot JAR gefunden (build/libs)."
+            exit 1
+          fi
           echo "Using JAR: $JAR"
           nohup java -jar "$JAR" \
             --spring.datasource.url="${SPRING_DATASOURCE_URL}" \
@@ -156,4 +181,3 @@ jobs:
             build/reports/jacoco/test/jacocoTestReport.xml
             build/jacoco/*.exec
           fail_ci_if_error: true
-
