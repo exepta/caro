@@ -46,12 +46,10 @@
             if [ -z "$proj" ]; then
               echo "has_gradle=false" >> $GITHUB_OUTPUT
               echo "project_dir=." >> $GITHUB_OUTPUT
-              echo "No Gradle build files found."
             else
               dir=$(dirname "$proj")
               echo "has_gradle=true" >> $GITHUB_OUTPUT
               echo "project_dir=$dir" >> $GITHUB_OUTPUT
-              echo "Gradle project detected in: $dir"
             fi
 
         - name: Ensure Gradle wrapper is executable if present
@@ -61,10 +59,8 @@
             if [ -f ./gradlew ]; then
               chmod +x ./gradlew
               echo "GRADLE_CMD=./gradlew" >> $GITHUB_ENV
-              echo "Using ./gradlew"
             else
               echo "GRADLE_CMD=gradle" >> $GITHUB_ENV
-              echo "No gradlew found, will use gradle from PATH"
             fi
 
         - name: Mark run as PR (pull_request trigger)
@@ -101,7 +97,6 @@
               exit 1
             fi
             
-            # Sammle candidate-Verzeichnisse
             SQL_DIRS=()
             [ -d scripts/sql ] && SQL_DIRS+=(scripts/sql)
             if [ "${{ steps.detect-project.outputs.project_dir }}" != "." ] && [ -d "${{ steps.detect-project.outputs.project_dir }}/scripts/sql" ]; then
@@ -114,7 +109,6 @@
               files=("$dir"/*.sql)
               shopt -u nullglob
               if [ ${#files[@]} -eq 0 ]; then
-                echo "Keine SQL-Dateien in $dir"
                 continue
               fi
             
@@ -190,7 +184,6 @@
             if [ ${#results[@]} -eq 0 ]; then
               echo "no_files_found=true" >> $GITHUB_OUTPUT
               echo "coverage_files=" >> $GITHUB_OUTPUT
-              echo "Keine Coverage-Dateien gefunden."
             else
               echo "no_files_found=false" >> $GITHUB_OUTPUT
               files=()
@@ -202,7 +195,6 @@
                 echo "$p"
               done
               echo "EOF" >> $GITHUB_OUTPUT
-              printf "%s\n" "${files[@]}"
             fi
 
         - name: Start Spring Boot application and wait for readiness
@@ -211,6 +203,8 @@
             SPRING_DATASOURCE_URL: ${{ env.SPRING_DATASOURCE_URL }}
             SPRING_DATASOURCE_USERNAME: ${{ env.SPRING_DATASOURCE_USERNAME }}
             SPRING_DATASOURCE_PASSWORD: ${{ env.SPRING_DATASOURCE_PASSWORD }}
+            SPRING_BOOT_USER: runner
+            SPRING_BOOT_PASSWORD: password
           run: |
             set -euo pipefail
             cd "${{ steps.detect-project.outputs.project_dir }}"
@@ -223,16 +217,22 @@
             nohup java -jar "$JAR" \
               --spring.datasource.url="${SPRING_DATASOURCE_URL}" \
               --spring.datasource.username="${SPRING_DATASOURCE_USERNAME}" \
-              --spring.datasource.password="${SPRING_DATASOURCE_PASSWORD}" &> app.log &
+              --spring.datasource.password="${SPRING_DATASOURCE_PASSWORD}" \
+              --spring.security.user.name="${SPRING_BOOT_USER}" \
+              --spring.security.user.password="${SPRING_BOOT_PASSWORD}" \
+              --management.endpoints.web.exposure.include=health,info \
+              --management.endpoint.health.show-details=never &> app.log &
+            
             echo "Warte auf Start des Backends (bis zu ~90s)..."
             for i in {1..30}; do
-              if curl -sSf http://localhost:8080/actuator/health >/dev/null 2>&1; then
+              if curl -sSf -u "${SPRING_BOOT_USER}:${SPRING_BOOT_PASSWORD}" http://localhost:8080/actuator/health >/dev/null 2>&1; then
                 echo "Backend ready."
                 break
               fi
               sleep 3
             done
-            if ! curl -sSf http://localhost:8080/actuator/health >/dev/null 2>&1; then
+            
+            if ! curl -sSf -u "${SPRING_BOOT_USER}:${SPRING_BOOT_PASSWORD}" http://localhost:8080/actuator/health >/dev/null 2>&1; then
               echo "Backend konnte nicht gestartet werden. Letzte Logs:"
               tail -n 200 app.log || true
               exit 1
