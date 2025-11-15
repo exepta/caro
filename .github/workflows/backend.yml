@@ -203,8 +203,6 @@
             SPRING_DATASOURCE_URL: ${{ env.SPRING_DATASOURCE_URL }}
             SPRING_DATASOURCE_USERNAME: ${{ env.SPRING_DATASOURCE_USERNAME }}
             SPRING_DATASOURCE_PASSWORD: ${{ env.SPRING_DATASOURCE_PASSWORD }}
-            SPRING_BOOT_USER: runner
-            SPRING_BOOT_PASSWORD: password
           run: |
             set -euo pipefail
             cd "${{ steps.detect-project.outputs.project_dir }}"
@@ -215,15 +213,14 @@
             fi
             echo "Using JAR: $JAR"
             
+            # Disable Spring Security auto-configuration for CI readiness check
             nohup java -jar "$JAR" \
               --spring.datasource.url="${SPRING_DATASOURCE_URL}" \
               --spring.datasource.username="${SPRING_DATASOURCE_USERNAME}" \
               --spring.datasource.password="${SPRING_DATASOURCE_PASSWORD}" \
-              --spring.security.user.name="${SPRING_BOOT_USER}" \
-              --spring.security.user.password="${SPRING_BOOT_PASSWORD}" \
               --management.endpoints.web.exposure.include=health,info \
               --management.endpoint.health.show-details=never \
-              --management.server.port=8080 &> app.log &
+              --spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration &> app.log &
             
             echo "Warte auf Start des Backends (bis zu ~180s)..."
             OK=0
@@ -233,13 +230,17 @@
             
             for i in $(seq 1 60); do
               echo "Check $i/60..."
-              status=$(curl -sS -u "${SPRING_BOOT_USER}:${SPRING_BOOT_PASSWORD}" -D "$TMP_HDR" -o "$TMP_BODY" -w "%{http_code}" "$HEALTH_URL" || true)
+              status=$(curl -sS -D "$TMP_HDR" -o "$TMP_BODY" -w "%{http_code}" "$HEALTH_URL" || true)
               echo "HTTP status: $status"
               if [ "$status" = "200" ]; then
                 echo "Backend ready."
                 OK=1
                 break
               fi
+              # show short snippet on non-200 for quicker debugging in logs
+              echo "---- actuator body (first 200 chars) ----"
+              head -c 200 "$TMP_BODY" || true
+              echo
               sleep 3
             done
             
