@@ -8,7 +8,16 @@ Content-Type: application/json
   "password": "123456"
 }
 
-### POST login request for user authentication
+> {%
+    client.test("register returns 409 or 200", function () {
+        client.assert(
+            response.status === 409 || response.status === 200,
+            "Expected 409 or 200, got: " + response.status
+        );
+    });
+%}
+
+### POST login request for user authentication (sccussess case)
 POST http://localhost:8080/api/auth/login
 Content-Type: application/json
 
@@ -19,7 +28,36 @@ Content-Type: application/json
 
 > {%
     client.global.set("refreshToken", response.body.refreshToken);
+
+    client.test("login status 200", function () {
+        client.assert(response.status === 200, "Expected 200, got: " + response.status);
+    });
+
+    client.test("login returns access + refresh", function () {
+        client.assert(!!response.body.accessToken, "accessToken missing");
+        client.assert(!!response.body.refreshToken, "refreshToken missing");
+    });
  %}
+
+### POST login request for user authentication (failure case)
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "emailOrUsername": "dev@caro.net",
+  "password": "1234567"
+}
+
+> {%
+    client.test("login status 401", function () {
+        client.assert(response.status === 401, "Expected 401, got: " + response.status);
+    });
+
+    client.test("login don't returns access + refresh", function () {
+        client.assert(!response.body.accessToken, "accessToken is not missing");
+        client.assert(!response.body.refreshToken, "refreshToken is not missing");
+    });
+%}
 
 ### POST refresh for testing token system
 POST http://localhost:8080/api/auth/refresh
@@ -28,5 +66,11 @@ Content-Type: application/json
 {
   "refreshToken": "{{refreshToken}}"
 }
+
+> {%
+    client.test("refresh status 200", function () {
+        client.assert(response.status === 200 || response.status === 401, "Expected 200 or 401, got: " + response.status);
+    });
+%}
 
 ###
