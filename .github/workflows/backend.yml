@@ -1,0 +1,159 @@
+name: backend.yml
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  build-and-integration:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: testdb
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/testdb
+      SPRING_DATASOURCE_USERNAME: test
+      SPRING_DATASOURCE_PASSWORD: password
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21 (Temurin) and cache Gradle
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x ./gradlew
+
+      - name: Detect whether this run should proceed (has open PR for branch or is a PR event)
+        id: pr-check
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const branch = context.ref.replace('refs/heads/','');
+            if (context.eventName === 'push') {
+              const resp = await github.rest.pulls.list({
+                owner,
+                repo,
+                state: 'open',
+                head: `${owner}:${branch}`
+              });
+              const hasPR = resp.data.length > 0;
+              core.setOutput('has_pr', hasPR ? 'true' : 'false');
+              if (!hasPR) console.log(`No open PR for branch ${branch} -> skipping job steps.`);
+            } else {
+              // pull_request events: always run
+              core.setOutput('has_pr', 'true');
+            }
+
+      - name: Build and run unit tests with JaCoCo
+        if: ${{ steps.pr-check.outputs.has_pr == 'true' }}
+        run: ./gradlew clean test jacocoTestReport --no-daemon --stacktrace
+
+      - name: Build Spring Boot jar
+        if: ${{ steps.pr-check.outputs.has_pr == 'true' }}
+        run: ./gradlew bootJar --no-daemon
+
+      - name: Wait for Postgres and import SQL scripts from scripts/sql
+        if: ${{ steps.pr-check.outputs.has_pr == 'true' }}
+        env:
+          PGPASSWORD: ${{ env.SPRING_DATASOURCE_PASSWORD }}
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client
+          echo "Warte auf Postgres (bis zu ~60s)..."
+          for i in {1..30}; do
+            if psql -h localhost -U ${{ env.SPRING_DATASOURCE_USERNAME }} -d ${{ env.SPRING_DATASOURCE_URL }} -c '\q' >/dev/null 2>&1; then
+              echo "Postgres erreichbar."
+              break
+            fi
+            sleep 2
+          done
+          # use known DB name from env
+          DB_HOST=localhost
+          DB_PORT=5432
+          DB_NAME=testdb
+          DB_USER=${{ env.SPRING_DATASOURCE_USERNAME }}
+          DB_PASS=${{ env.SPRING_DATASOURCE_PASSWORD }}
+          export PGPASSWORD="$DB_PASS"
+          if [ -d scripts/sql ]; then
+            for f in scripts/sql/*.sql; do
+              if [ -f "$f" ]; then
+                echo "Importiere $f"
+                psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "$f"
+              fi
+            done
+          else
+            echo "Kein scripts/sql-Verzeichnis gefunden, überspringe SQL-Import."
+          fi
+
+      - name: Start Spring Boot application and wait for readiness
+        if: ${{ steps.pr-check.outputs.has_pr == 'true' }}
+        env:
+          SPRING_DATASOURCE_URL: ${{ env.SPRING_DATASOURCE_URL }}
+          SPRING_DATASOURCE_USERNAME: ${{ env.SPRING_DATASOURCE_USERNAME }}
+          SPRING_DATASOURCE_PASSWORD: ${{ env.SPRING_DATASOURCE_PASSWORD }}
+        run: |
+          JAR=$(find build/libs -type f -name "*.jar" | head -n 1)
+          echo "Using JAR: $JAR"
+          nohup java -jar "$JAR" \
+            --spring.datasource.url="${SPRING_DATASOURCE_URL}" \
+            --spring.datasource.username="${SPRING_DATASOURCE_USERNAME}" \
+            --spring.datasource.password="${SPRING_DATASOURCE_PASSWORD}" &> app.log &
+          echo "Warte auf Start des Backends (bis zu ~90s)..."
+          for i in {1..30}; do
+            if curl -sSf http://localhost:8080/actuator/health >/dev/null 2>&1; then
+              echo "Backend ist erreichbar."
+              break
+            fi
+            sleep 3
+          done
+          if ! curl -sSf http://localhost:8080/actuator/health >/dev/null 2>&1; then
+            echo "Backend konnte nicht gestartet werden. Letzte Logs:"
+            tail -n 200 app.log || true
+            exit 1
+          fi
+
+      - name: Execute HTTP scripts from scripts folder
+        if: ${{ steps.pr-check.outputs.has_pr == 'true' }}
+        run: |
+          if [ -d scripts ]; then
+            set -e
+            for f in scripts/*; do
+              if [ -f "$f" ]; then
+                echo "Running script: $f"
+                chmod +x "$f" || true
+                bash "$f"
+              fi
+            done
+          else
+            echo "Kein scripts-Ordner vorhanden, überspringe."
+          fi
+
+      - name: Upload JaCoCo coverage to Codecov
+        if: ${{ steps.pr-check.outputs.has_pr == 'true' }}
+        uses: codecov/codecov-action@v4
+        with:
+          files: |
+            build/reports/jacoco/test/jacocoTestReport.xml
+            build/jacoco/*.exec
+          fail_ci_if_error: true
+
