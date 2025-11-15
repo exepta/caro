@@ -42,16 +42,13 @@
         - name: Detect Gradle project directory
           id: detect-project
           run: |
-            proj=$(git ls-files | grep -E '(^|/)(settings.gradle|settings.gradle.kts|build.gradle|build.gradle.kts|settings.gradle.dcl|build.gradle.dcl)' | head -n1 || true)
+            proj=$(git ls-files | grep -E '(^|/)(settings.gradle|settings.gradle.kts|build.gradle|build.gradle.kts)' | head -n1 || true)
             if [ -z "$proj" ]; then
               echo "has_gradle=false" >> $GITHUB_OUTPUT
               echo "project_dir=." >> $GITHUB_OUTPUT
-              echo "No Gradle build files found in repository."
+              echo "No Gradle build files found."
             else
               dir=$(dirname "$proj")
-              if [ "$dir" = "." ]; then
-                dir="."
-              fi
               echo "has_gradle=true" >> $GITHUB_OUTPUT
               echo "project_dir=$dir" >> $GITHUB_OUTPUT
               echo "Gradle project detected in: $dir"
@@ -63,17 +60,16 @@
             cd "${{ steps.detect-project.outputs.project_dir }}"
             if [ -f ./gradlew ]; then
               chmod +x ./gradlew
-              echo "Using ./gradlew"
               echo "GRADLE_CMD=./gradlew" >> $GITHUB_ENV
+              echo "Using ./gradlew"
             else
-              echo "No gradlew wrapper found in project dir, will try to use gradle from PATH"
               echo "GRADLE_CMD=gradle" >> $GITHUB_ENV
+              echo "No gradlew found, will use gradle from PATH"
             fi
 
         - name: Mark run as PR (pull_request trigger)
           id: pr-check
           run: |
-            # workflow triggert nur pull_request, daher immer weiter
             echo "has_pr=true" >> $GITHUB_OUTPUT
 
         - name: Install psql client, wait for Postgres and import SQL scripts (before tests)
@@ -91,6 +87,7 @@
             DB_USER=${{ env.SPRING_DATASOURCE_USERNAME }}
             DB_PASS=${{ env.SPRING_DATASOURCE_PASSWORD }}
             export PGPASSWORD="$DB_PASS"
+            
             for i in {1..30}; do
               if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c '\q' >/dev/null 2>&1; then
                 echo "Postgres erreichbar."
@@ -98,43 +95,54 @@
               fi
               sleep 2
             done
+            
             if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c '\q' >/dev/null 2>&1; then
               echo "Postgres konnte nicht erreicht werden."
               exit 1
             fi
             
-            # Suche nach SQL-Dateien im Repo-Root und im Gradle-Projektverzeichnis
-            IMPORTED=false
-            candidates=()
-            if [ -d scripts/sql ]; then
-              candidates+=(scripts/sql)
-            fi
+            # Sammle candidate-Verzeichnisse
+            SQL_DIRS=()
+            [ -d scripts/sql ] && SQL_DIRS+=(scripts/sql)
             if [ "${{ steps.detect-project.outputs.project_dir }}" != "." ] && [ -d "${{ steps.detect-project.outputs.project_dir }}/scripts/sql" ]; then
-              candidates+=("${{ steps.detect-project.outputs.project_dir }}/scripts/sql")
+              SQL_DIRS+=("${{ steps.detect-project.outputs.project_dir }}/scripts/sql")
             fi
             
-            for dir in "${candidates[@]}"; do
-              echo "Prüfe $dir auf .sql Dateien..."
+            IMPORTED=false
+            for dir in "${SQL_DIRS[@]}"; do
               shopt -s nullglob
               files=("$dir"/*.sql)
               shopt -u nullglob
-              if [ ${#files[@]} -gt 0 ]; then
-                echo "Gefundene SQL-Dateien in $dir:"
-                for f in "${files[@]}"; do
-                  echo " - $f"
-                  psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -f "$f"
-                  echo "-> importiert $f"
-                  IMPORTED=true
-                done
-              else
+              if [ ${#files[@]} -eq 0 ]; then
                 echo "Keine SQL-Dateien in $dir"
+                continue
               fi
+            
+              echo "Gefundene SQL-Dateien in $dir:"
+              for f in "${files[@]}"; do echo " - $f"; done
+            
+              # Importiere users.sql zuerst, falls vorhanden
+              if [ -f "$dir/users.sql" ]; then
+                echo "Importiere $dir/users.sql (zuerst)"
+                psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -f "$dir/users.sql"
+              fi
+            
+              # Importiere die restlichen Dateien (außer users.sql)
+              for f in "${files[@]}"; do
+                base=$(basename "$f")
+                if [ "$base" = "users.sql" ]; then
+                  continue
+                fi
+                echo "Importiere $f"
+                psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -f "$f"
+              done
+            
+              IMPORTED=true
             done
             
             if [ "$IMPORTED" = "false" ]; then
               echo "Kein scripts/sql-Verzeichnis mit SQL-Dateien gefunden, überspringe SQL-Import."
             else
-              # kurze Pause, damit DB-Transaktionen abgeschlossen sind
               sleep 2
             fi
 
@@ -147,51 +155,38 @@
           run: |
             set -euo pipefail
             cd "${{ steps.detect-project.outputs.project_dir }}"
-            if ! command -v ${GRADLE_CMD%% *} >/dev/null 2>&1; then
-              echo "Gradle not found (${GRADLE_CMD}). Bitte gradlew ins Repo oder Gradle im PATH bereitstellen."
+            if [ -z "${GRADLE_CMD:-}" ]; then
+              echo "GRADLE_CMD not set"
               exit 1
             fi
             echo "Running tests with enforced DB properties..."
-            # Übergibt DB-Config explizit an die Test-JVM, damit Tests die CI-Postgres verwenden
-            $GRADLE_CMD clean test -Dspring.datasource.url="${SPRING_DATASOURCE_URL}" -Dspring.datasource.username="${SPRING_DATASOURCE_USERNAME}" -Dspring.datasource.password="${SPRING_DATASOURCE_PASSWORD}" --no-daemon --stacktrace || true
-            # Falls Tests fehlschlagen, Ausgabe der Test-Reports für Diagnose
-            if [ -f build/reports/tests/test/index.html ]; then
-              echo "Test-Report verfügbar: build/reports/tests/test/index.html"
-            fi
-            # Fail die step, wenn Tests fehlschlugen (Gradle beendet mit non-zero)
-            if grep -q "FAILED" <<<"$($GRADLE_CMD -v 2>&1)"; then
-              echo "Hinweis: Gradle-Wrapper existiert; prüfe Reports."
-            fi
-            # Prüfe auf jacocoTask und generiere Report wenn vorhanden
+            $GRADLE_CMD clean test -Dspring.datasource.url="${SPRING_DATASOURCE_URL}" -Dspring.datasource.username="${SPRING_DATASOURCE_USERNAME}" -Dspring.datasource.password="${SPRING_DATASOURCE_PASSWORD}" --no-daemon --stacktrace
+            
             if $GRADLE_CMD tasks --all | grep -q 'jacocoTestReport'; then
               echo "Found jacocoTestReport - running report task"
               $GRADLE_CMD jacocoTestReport --no-daemon --stacktrace || true
             else
               echo "Task jacocoTestReport nicht gefunden - überspringe."
             fi
-            # Gerechte Exit-Code-Logik: wenn Tests fehlgeschlagen sind, Gradle gibt non-zero; wir möchten die Job-Run abbrechen
-            # Überprüfe Testergebnis anhand des Gradle-Resultfiles
-            if [ -f build/test-results/test/TEST-*.xml ]; then
-              if grep -q 'failure' build/test-results/test/*.xml || grep -q 'error' build/test-results/test/*.xml; then
-                echo "Tests enthalten Failures. See build/reports/tests/test/index.html"
-                exit 1
-              fi
-            fi
 
         - name: Build Spring Boot jar
           if: ${{ steps.pr-check.outputs.has_pr == 'true' && steps.detect-project.outputs.has_gradle == 'true' }}
           run: |
-            set -e
+            set -euo pipefail
             cd "${{ steps.detect-project.outputs.project_dir }}"
-            $GRADLE_CMD bootJar --no-daemon
+            if [ -z "${GRADLE_CMD:-}" ]; then
+              echo "GRADLE_CMD not set"
+              exit 1
+            fi
+            $GRADLE_CMD bootJar --no-daemon --stacktrace
 
         - name: Collect JaCoCo/coverage artifacts
           id: collect-coverage
           if: ${{ steps.pr-check.outputs.has_pr == 'true' && steps.detect-project.outputs.has_gradle == 'true' }}
           run: |
-            set -e
+            set -euo pipefail
             cd "${{ steps.detect-project.outputs.project_dir }}"
-            mapfile -t results < <(find . -type f \( -name 'jacocoTestReport.xml' -o -name 'jacocoTestReport-*.xml' -o -name '*.exec' -o -path './build/reports/jacoco/**' \) -print)
+            mapfile -t results < <(find . -type f \( -name 'jacocoTestReport.xml' -o -name 'jacocoTestReport-*.xml' -o -name '*.exec' -o -path './build/reports/jacoco/*' \) -print)
             if [ ${#results[@]} -eq 0 ]; then
               echo "no_files_found=true" >> $GITHUB_OUTPUT
               echo "coverage_files=" >> $GITHUB_OUTPUT
@@ -200,12 +195,11 @@
               echo "no_files_found=false" >> $GITHUB_OUTPUT
               files=()
               for f in "${results[@]}"; do
-                nf="${f#./}"
-                files+=("$nf")
+                files+=("$(realpath --relative-to=. "$f")")
               done
               echo "coverage_files<<EOF" >> $GITHUB_OUTPUT
               for p in "${files[@]}"; do
-                echo "$p" >> $GITHUB_OUTPUT
+                echo "$p"
               done
               echo "EOF" >> $GITHUB_OUTPUT
               printf "%s\n" "${files[@]}"
@@ -218,11 +212,11 @@
             SPRING_DATASOURCE_USERNAME: ${{ env.SPRING_DATASOURCE_USERNAME }}
             SPRING_DATASOURCE_PASSWORD: ${{ env.SPRING_DATASOURCE_PASSWORD }}
           run: |
-            set -e
+            set -euo pipefail
             cd "${{ steps.detect-project.outputs.project_dir }}"
-            JAR=$(find build/libs -type f -name "*.jar" | head -n 1)
+            JAR=$(find build/libs -type f -name "*.jar" | head -n 1 || true)
             if [ -z "$JAR" ]; then
-              echo "Kein Spring Boot JAR gefunden (build/libs)."
+              echo "Kein Spring Boot JAR gefunden."
               exit 1
             fi
             echo "Using JAR: $JAR"
@@ -233,7 +227,7 @@
             echo "Warte auf Start des Backends (bis zu ~90s)..."
             for i in {1..30}; do
               if curl -sSf http://localhost:8080/actuator/health >/dev/null 2>&1; then
-                echo "Backend ist erreichbar."
+                echo "Backend ready."
                 break
               fi
               sleep 3
@@ -244,24 +238,15 @@
               exit 1
             fi
 
-        - name: Execute HTTP scripts from scripts folder
+        - name: Execute shell scripts from scripts folder
           if: ${{ steps.pr-check.outputs.has_pr == 'true' }}
           run: |
+            set -euo pipefail
             if [ -d scripts ]; then
-              set -e
-              for f in scripts/*; do
-                if [ -f "$f" ]; then
-                  echo "Run script: $f"
-                  if command -v http >/dev/null 2>&1; then
-                    http -v --session=ci "@$f"
-                  elif command -v curl >/dev/null 2>&1; then
-                    # basic fallback: assume file contains a single curl line
-                    while IFS= read -r line; do
-                      echo "-> $line"
-                      eval "$line"
-                    done < "$f"
-                  fi
-                fi
+              for f in scripts/*.sh; do
+                [ -f "$f" ] || continue
+                echo "Run $f"
+                bash "$f"
               done
             else
               echo "Kein scripts-Ordner vorhanden, überspringe."
