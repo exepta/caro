@@ -21,10 +21,14 @@
   button {
     background: none;
     border: none;
-    color: #ff4bba;
+    color: #5c3ad4;
     cursor: pointer;
     font-weight: 600;
     font-size: 1rem;
     padding: 0;
+
+    &:hover {
+      filter: brightness(1.1);
+    }
   }
 }
