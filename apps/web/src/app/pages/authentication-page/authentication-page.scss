@@ -1,0 +1,30 @@
+.auth-wrapper {
+  width: 400px;
+  padding: 2rem;
+  border-radius: 12px;
+  background: #191b20;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.auth-wrapper .switcher-link {
+  margin-top: 1rem;
+}
+
+.switcher-link span {
+  color: #777;
+
+  button {
+    background: none;
+    border: none;
+    color: #ff4bba;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1rem;
+    padding: 0;
+  }
+}
