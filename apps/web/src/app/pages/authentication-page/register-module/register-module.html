@@ -1,0 +1,30 @@
+<div class="auth-container">
+<form class="auth-form" (submit)="submit($event)">
+  <input
+    type="email"
+    placeholder="Email"
+    [value]="email()"
+    (input)="onEmailInput($event)"
+  />
+
+  <input
+    type="text"
+    placeholder="Username"
+    [value]="username()"
+    (input)="onUsernameInput($event)"
+  />
+
+  <input
+    type="password"
+    placeholder="Password"
+    [value]="password()"
+    (input)="onPasswordInput($event)"
+  />
+
+  <button type="submit">Register</button>
+
+  @if (error()) {
+    <p class="error">{{ error() }}</p>
+  }
+</form>
+</div>
