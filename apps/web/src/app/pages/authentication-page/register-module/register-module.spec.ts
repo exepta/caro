@@ -1,19 +1,27 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { of, throwError } from 'rxjs';
 
 import { RegisterModule } from './register-module';
+import { AuthService } from '../../../services/auth.service';
+
+class AuthServiceMock {
+  register = jest.fn();
+}
 
 describe('RegisterModule', () => {
   let component: RegisterModule;
   let fixture: ComponentFixture<RegisterModule>;
+  let authService: AuthServiceMock;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [RegisterModule]
-    })
-      .compileComponents();
+      imports: [RegisterModule],
+      providers: [{ provide: AuthService, useClass: AuthServiceMock }],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(RegisterModule);
     component = fixture.componentInstance;
+    authService = TestBed.inject(AuthService) as unknown as AuthServiceMock;
     fixture.detectChanges();
   });
 
@@ -29,16 +37,68 @@ describe('RegisterModule', () => {
     component.submit(new Event('submit'));
 
     expect(component.error()).toBe('Missing fields');
+    expect(authService.register).not.toHaveBeenCalled();
   });
 
-  it('does not display error when all fields are filled', () => {
+  it('calls AuthService.register when all fields are provided', () => {
     component.email.set('test@example.com');
     component.username.set('testuser');
     component.password.set('password123');
 
+    authService.register.mockReturnValue(
+      of({ accessToken: 'access', refreshToken: 'refresh' } as any),
+    );
+
     component.submit(new Event('submit'));
 
+    expect(authService.register).toHaveBeenCalledWith({
+      email: 'test@example.com',
+      username: 'testuser',
+      password: 'password123',
+    });
+  });
+
+  it('clears fields and leaves error empty on successful register', () => {
+    component.email.set('test@example.com');
+    component.username.set('testuser');
+    component.password.set('password123');
+
+    authService.register.mockReturnValue(
+      of({ accessToken: 'access', refreshToken: 'refresh' } as any),
+    );
+
+    component.submit(new Event('submit'));
+
+    expect(component.email()).toBe('');
+    expect(component.username()).toBe('');
+    expect(component.password()).toBe('');
     expect(component.error()).toBe('');
+  });
+
+  it('sets error signal when register fails with message', () => {
+    component.email.set('test@example.com');
+    component.username.set('testuser');
+    component.password.set('password123');
+
+    const httpError = { error: { message: 'User already exists' } };
+
+    authService.register.mockReturnValue(throwError(() => httpError));
+
+    component.submit(new Event('submit'));
+
+    expect(component.error()).toBe('User already exists');
+  });
+
+  it('falls back to default error message when register fails without message', () => {
+    component.email.set('test@example.com');
+    component.username.set('testuser');
+    component.password.set('password123');
+
+    authService.register.mockReturnValue(throwError(() => ({})));
+
+    component.submit(new Event('submit'));
+
+    expect(component.error()).toBe('Register failed');
   });
 
   it('updates email signal on input', () => {
@@ -100,22 +160,4 @@ describe('RegisterModule', () => {
 
     expect(component.password()).toBe('');
   });
-
-  it('logs register payload when all fields are provided', () => {
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-    component.email.set('user@example.com');
-    component.username.set('testuser');
-    component.password.set('password123');
-
-    component.submit(new Event('submit'));
-
-    expect(logSpy).toHaveBeenCalledWith('Register payload:', {
-      email: 'user@example.com',
-      username: 'testuser',
-      password: 'password123',
-    });
-
-    logSpy.mockRestore();
-  });
-
 });

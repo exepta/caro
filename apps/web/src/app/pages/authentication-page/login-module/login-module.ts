@@ -1,4 +1,5 @@
-import {Component, signal} from '@angular/core';
+import {Component, inject, signal} from '@angular/core';
+import {AuthService} from '../../../services/auth.service';
 
 @Component({
   selector: 'app-login-module',
@@ -11,6 +12,8 @@ export class LoginModule {
   password = signal('');
   error = signal('');
 
+  private authService: AuthService = inject(AuthService);
+
   submit(e: Event) {
     e.preventDefault();
 
@@ -19,10 +22,18 @@ export class LoginModule {
       return;
     }
 
-    console.log('Login payload:', {
-      email: this.email(),
-      password: this.password(),
-    });
+    this.authService.login({ emailOrUsername: this.email(), password: this.password() })
+      .subscribe({
+        next: (response) => {
+          console.log('Login success:', response);
+          this.email.set('');
+          this.password.set('');
+        },
+        error: (error) => {
+          console.error('Login error', error);
+          this.error.set(error?.error?.message ?? 'Login failed');
+        }
+      });
   }
 
   onEmailInput(e: Event) {
@@ -36,6 +47,4 @@ export class LoginModule {
     if (!target) return;
     this.password.set(target.value);
   }
-
-  protected readonly HTMLInputElement = HTMLInputElement;
 }

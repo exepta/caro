@@ -1,17 +1,18 @@
 package org.tiltus.authbackend.security;
 
-import jakarta.servlet.http.HttpServletMapping;
-import jakarta.servlet.http.HttpServletRequest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 
@@ -19,8 +20,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class SecurityConfigTest {
@@ -34,6 +34,13 @@ class SecurityConfigTest {
     @Mock
     private HttpSecurity httpSecurity;
 
+    private final String allowedOrigins = "http://localhost:4200";
+
+    @BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(securityConfig, "allowedOrigins", allowedOrigins);
+    }
+
     @Test
     void filterChain_configuresHttpSecurityCorrectly() throws Exception {
         org.mockito.Mockito.doReturn(httpSecurity).when(httpSecurity).csrf(org.mockito.ArgumentMatchers.any());
@@ -42,7 +49,7 @@ class SecurityConfigTest {
         org.mockito.Mockito.doReturn(httpSecurity).when(httpSecurity).authorizeHttpRequests(org.mockito.ArgumentMatchers.any());
         org.mockito.Mockito.doReturn(httpSecurity).when(httpSecurity).addFilterBefore(org.mockito.Mockito.any(), org.mockito.ArgumentMatchers.eq(UsernamePasswordAuthenticationFilter.class));
 
-        SecurityFilterChain mockChain = org.mockito.Mockito.mock(SecurityFilterChain.class);
+        SecurityFilterChain mockChain = mock(SecurityFilterChain.class);
         org.mockito.Mockito.doReturn(mockChain).when(httpSecurity).build();
 
         SecurityFilterChain chain = securityConfig.filterChain(httpSecurity);
@@ -65,22 +72,15 @@ class SecurityConfigTest {
 
     @Test
     void cors_returnsCorsConfigurationSourceWithAllowedOrigins() {
-        String allowedOrigins = "https://example.com";
-        CorsConfigurationSource source = securityConfig.cors(allowedOrigins);
-
+        CorsConfigurationSource source = securityConfig.corsConfigurationSource();
         assertNotNull(source);
-        HttpServletRequest request = org.mockito.Mockito.mock(HttpServletRequest.class);
 
-        lenient().doReturn(null).when(request).getAttribute(org.mockito.ArgumentMatchers.anyString());
-        lenient().doReturn("").when(request).getRequestURI();
-        lenient().doReturn("").when(request).getContextPath();
-        lenient().doReturn("").when(request).getServletPath();
-        lenient().doReturn(null).when(request).getPathInfo();
-
-        HttpServletMapping mapping = org.mockito.Mockito.mock(HttpServletMapping.class);
-        lenient().doReturn(mapping).when(request).getHttpServletMapping();
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setMethod("GET");
+        request.setRequestURI("/api/auth/login");
 
         CorsConfiguration config = source.getCorsConfiguration(request);
+
         assertNotNull(config);
         assertEquals(List.of(allowedOrigins), config.getAllowedOrigins());
         assertEquals(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"), config.getAllowedMethods());

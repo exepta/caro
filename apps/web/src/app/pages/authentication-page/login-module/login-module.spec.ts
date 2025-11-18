@@ -1,19 +1,27 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { of, throwError } from 'rxjs';
 
 import { LoginModule } from './login-module';
+import { AuthService } from '../../../services/auth.service';
+
+class AuthServiceMock {
+  login = jest.fn();
+}
 
 describe('LoginModule', () => {
   let component: LoginModule;
   let fixture: ComponentFixture<LoginModule>;
+  let authService: AuthServiceMock;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [LoginModule]
-    })
-    .compileComponents();
+      imports: [LoginModule],
+      providers: [{ provide: AuthService, useClass: AuthServiceMock }],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(LoginModule);
     component = fixture.componentInstance;
+    authService = TestBed.inject(AuthService) as unknown as AuthServiceMock;
     fixture.detectChanges();
   });
 
@@ -30,13 +38,61 @@ describe('LoginModule', () => {
     expect(component.error()).toBe('Missing credentials');
   });
 
-  it('does not display error when email and password are provided', () => {
+  it('calls AuthService.login when email and password are provided', () => {
     component.email.set('user@example.com');
     component.password.set('password123');
 
+    authService.login.mockReturnValue(
+      of({ accessToken: 'access', refreshToken: 'refresh' } as any),
+    );
+
     component.submit(new Event('submit'));
 
+    expect(authService.login).toHaveBeenCalledWith({
+      emailOrUsername: 'user@example.com',
+      password: 'password123',
+    });
+  });
+
+  it('clears email and password on successful login and keeps error empty', () => {
+    component.email.set('user@example.com');
+    component.password.set('password123');
+
+    authService.login.mockReturnValue(
+      of({ accessToken: 'access', refreshToken: 'refresh' } as any),
+    );
+
+    component.submit(new Event('submit'));
+
+    expect(component.email()).toBe('');
+    expect(component.password()).toBe('');
     expect(component.error()).toBe('');
+  });
+
+  it('sets error signal when login fails', () => {
+    component.email.set('user@example.com');
+    component.password.set('password123');
+
+    const httpError = {
+      error: { message: 'Invalid credentials' },
+    };
+
+    authService.login.mockReturnValue(throwError(() => httpError));
+
+    component.submit(new Event('submit'));
+
+    expect(component.error()).toBe('Invalid credentials');
+  });
+
+  it('falls back to default error message when login fails without message', () => {
+    component.email.set('user@example.com');
+    component.password.set('password123');
+
+    authService.login.mockReturnValue(throwError(() => ({})));
+
+    component.submit(new Event('submit'));
+
+    expect(component.error()).toBe('Login failed');
   });
 
   it('updates email signal on valid input', () => {
@@ -76,5 +132,4 @@ describe('LoginModule', () => {
 
     expect(component.password()).toBe('');
   });
-
 });

@@ -127,7 +127,7 @@
       },
       "LoginRequest": {
         "type": "object",
-        "required": ["email", "password"],
+        "required": ["emailOrUsername", "password"],
         "properties": {
           "emailOrUsername": {
             "type": "string",
