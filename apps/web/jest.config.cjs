@@ -15,7 +15,12 @@ const config = {
     '<rootDir>/node_modules/',
     '<rootDir>/dist/',
     '<rootDir>/src/test.ts',
+    '<rootDir>/src/app/api/',
     '<rootDir>/playwright/',
+  ],
+
+  coveragePathIgnorePatterns: [
+    '<rootDir>/src/app/api/',
   ],
 
   moduleNameMapper: {

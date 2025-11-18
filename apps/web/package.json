@@ -8,7 +8,9 @@
     "watch": "ng build --watch --configuration development",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "generate:api": "openapi-generator-cli generate -i ../../shared/openapi.json -g typescript-angular -o src/app/api",
+    "prepare": "pnpm run generate:api"
   },
   "prettier": {
     "printWidth": 100,
@@ -37,6 +39,7 @@
     "@angular/build": "^20.3.10",
     "@angular/cli": "^20.3.10",
     "@angular/compiler-cli": "^20.3.0",
+    "@openapitools/openapi-generator-cli": "^2.25.0",
     "@playwright/test": "^1.56.1",
     "@types/jasmine": "~5.1.0",
     "@types/jest": "^30.0.0",
