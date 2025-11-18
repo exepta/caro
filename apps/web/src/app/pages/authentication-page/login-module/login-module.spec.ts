@@ -3,6 +3,7 @@ import { of, throwError } from 'rxjs';
 
 import { LoginModule } from './login-module';
 import { AuthService } from '../../../services/auth.service';
+import { Router } from '@angular/router';
 
 class AuthServiceMock {
   login = jest.fn();
@@ -12,16 +13,29 @@ describe('LoginModule', () => {
   let component: LoginModule;
   let fixture: ComponentFixture<LoginModule>;
   let authService: AuthServiceMock;
+  let router: { navigateByUrl: jest.Mock<Promise<boolean>, [string]> };
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [LoginModule],
-      providers: [{ provide: AuthService, useClass: AuthServiceMock }],
+      providers: [
+        { provide: AuthService, useClass: AuthServiceMock },
+        {
+          provide: Router,
+          useValue: {
+            navigateByUrl: jest.fn().mockResolvedValue(true),
+          } as Partial<Router>,
+        },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(LoginModule);
     component = fixture.componentInstance;
     authService = TestBed.inject(AuthService) as unknown as AuthServiceMock;
+    router = TestBed.inject(Router) as unknown as {
+      navigateByUrl: jest.Mock<Promise<boolean>, [string]>;
+    };
+
     fixture.detectChanges();
   });
 
@@ -54,7 +68,7 @@ describe('LoginModule', () => {
     });
   });
 
-  it('clears email and password on successful login and keeps error empty', () => {
+  it('clears email and password on successful login, keeps error empty and navigates to /client', () => {
     component.email.set('user@example.com');
     component.password.set('password123');
 
@@ -67,6 +81,7 @@ describe('LoginModule', () => {
     expect(component.email()).toBe('');
     expect(component.password()).toBe('');
     expect(component.error()).toBe('');
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/client');
   });
 
   it('sets error signal when login fails', () => {

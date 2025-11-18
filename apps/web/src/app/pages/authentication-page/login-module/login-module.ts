@@ -1,5 +1,6 @@
 import {Component, inject, signal} from '@angular/core';
 import {AuthService} from '../../../services/auth.service';
+import {Router} from '@angular/router';
 
 @Component({
   selector: 'app-login-module',
@@ -13,6 +14,7 @@ export class LoginModule {
   error = signal('');
 
   private authService: AuthService = inject(AuthService);
+  private router = inject(Router);
 
   submit(e: Event) {
     e.preventDefault();
@@ -28,6 +30,8 @@ export class LoginModule {
           console.log('Login success:', response);
           this.email.set('');
           this.password.set('');
+
+          void this.router.navigateByUrl('/client');
         },
         error: (error) => {
           console.error('Login error', error);

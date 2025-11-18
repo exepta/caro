@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { ClientView } from './client-view';
+import { ClientViewPage } from './client-view-page';
 
-describe('ClientView', () => {
-  let component: ClientView;
-  let fixture: ComponentFixture<ClientView>;
+describe('ClientViewPage', () => {
+  let component: ClientViewPage;
+  let fixture: ComponentFixture<ClientViewPage>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ClientView]
+      imports: [ClientViewPage]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(ClientView);
+    fixture = TestBed.createComponent(ClientViewPage);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
