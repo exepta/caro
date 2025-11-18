@@ -28,4 +28,4 @@ jwt:
   refresh-ttl-days: 30
   secret: "CHANGE_ME_MIN_32_BYTES_LONG_SECRET" # .env later
 cors:
-  allowed-origins: "http://localhost:4200"
+  allowed-origins: http://localhost:4200

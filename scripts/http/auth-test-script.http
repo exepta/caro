@@ -9,10 +9,10 @@ Content-Type: application/json
 }
 
 > {%
-    client.test("register returns 409 or 200", function () {
+    client.test("register returns 409 or 200 / 201", function () {
         client.assert(
-            response.status === 409 || response.status === 200,
-            "Expected 409 or 200, got: " + response.status
+            response.status === 409 || response.status === 200 || response.status === 201,
+            "Expected 409 or 200 / 201, got: " + response.status
         );
     });
 %}

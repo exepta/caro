@@ -1,4 +1,5 @@
-import {Component, signal} from '@angular/core';
+import {Component, inject, signal} from '@angular/core';
+import {AuthService} from '../../../services/auth.service';
 
 @Component({
   selector: 'app-register-module',
@@ -12,6 +13,8 @@ export class RegisterModule {
   password = signal('');
   error = signal('');
 
+  private authService: AuthService = inject(AuthService);
+
   submit(e: Event) {
     e.preventDefault();
 
@@ -20,11 +23,19 @@ export class RegisterModule {
       return;
     }
 
-    console.log('Register payload:', {
-      email: this.email(),
-      username: this.username(),
-      password: this.password(),
-    });
+    this.authService.register({ email: this.email(), username: this.username(), password: this.password() })
+      .subscribe({
+        next: (response) => {
+          console.log('Register success:', response);
+          this.email.set('');
+          this.username.set('');
+          this.password.set('');
+        },
+        error: (error) => {
+          console.error('Register error:', error);
+          this.error.set(error?.error?.message ?? 'Register failed');
+        }
+      });
   }
 
   onEmailInput(e: Event) {
