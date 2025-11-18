@@ -1,5 +1,8 @@
 # Caro
 
+[![frontend](https://github.com/exepta/caro/actions/workflows/frontend.yml/badge.svg)](https://github.com/exepta/caro/actions/workflows/frontend.yml)
+[![backend](https://github.com/exepta/caro/actions/workflows/backend.yml/badge.svg)](https://github.com/exepta/caro/actions/workflows/backend.yml)
+
 ### Development setup
 To start with development, you need to run docker compose for postgres and redis databases.
 The postgres database will be available on port 5432 and redis on port 6379. 
