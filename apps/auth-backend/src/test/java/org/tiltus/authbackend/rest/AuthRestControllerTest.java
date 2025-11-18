@@ -1,31 +1,19 @@
 package org.tiltus.authbackend.rest;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jws;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.server.ResponseStatusException;
-import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.tiltus.authbackend.model.CaroUser;
-import org.tiltus.authbackend.model.RefreshToken;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.server.ResponseStatusException;
 import org.tiltus.authbackend.repositories.CaroUserRepository;
-import org.tiltus.authbackend.repositories.RefreshTokenRepository;
 import org.tiltus.authbackend.rest.requests.LoginRequest;
 import org.tiltus.authbackend.rest.requests.RefreshRequest;
 import org.tiltus.authbackend.rest.requests.RegisterRequest;
 import org.tiltus.authbackend.rest.response.TokenResponse;
-import org.tiltus.authbackend.services.JwtService;
-import org.springframework.security.crypto.password.PasswordEncoder;
-
-import java.time.Instant;
-import java.time.Duration;
-import java.util.Optional;
-import java.util.UUID;
+import org.tiltus.authbackend.services.AuthService;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -37,30 +25,19 @@ class AuthRestControllerTest {
     private CaroUserRepository userRepository;
 
     @Mock
-    private RefreshTokenRepository refreshTokenRepository;
-
-    @Mock
-    private PasswordEncoder passwordEncoder;
-
-    @Mock
-    private JwtService jwtService;
+    private AuthService authService;
 
     @InjectMocks
     private AuthRestController controller;
 
     @Test
     void register_success_returnsCreatedTokens() {
-        RegisterRequest req = new RegisterRequest("alice", "alice@example.com", "password");
-        when(userRepository.existsByEmailIgnoreCase(anyString())).thenReturn(false);
-        when(passwordEncoder.encode("password")).thenReturn("hashed");
-        CaroUser saved = mock(CaroUser.class);
-        UUID id = UUID.randomUUID();
-        when(saved.getId()).thenReturn(id);
-        when(saved.getUsername()).thenReturn("alice");
-        when(userRepository.save(any())).thenReturn(saved);
+        RegisterRequest req = new RegisterRequest("alice@example.com", "alice", "password");
 
-        when(jwtService.issueAccess(id, "alice")).thenReturn("access-token");
-        when(jwtService.issueRefresh(id)).thenReturn("refresh-token");
+        when(userRepository.existsByEmailIgnoreCase(req.email())).thenReturn(false);
+
+        TokenResponse expected = new TokenResponse("access-token", "refresh-token");
+        when(authService.register(req)).thenReturn(expected);
 
         ResponseEntity<TokenResponse> resp = controller.register(req);
 
@@ -69,32 +46,30 @@ class AuthRestControllerTest {
         assertEquals("access-token", resp.getBody().accessToken());
         assertEquals("refresh-token", resp.getBody().refreshToken());
 
-        verify(refreshTokenRepository).deleteByUser(saved);
-        verify(refreshTokenRepository).save(ArgumentMatchers.any(RefreshToken.class));
+        verify(userRepository).existsByEmailIgnoreCase(req.email());
+        verify(authService).register(req);
     }
 
     @Test
     void register_conflict_whenEmailExists() {
-        RegisterRequest req = new RegisterRequest("bob", "bob@example.com", "pw");
-        // accept any string to match controller behavior
-        when(userRepository.existsByEmailIgnoreCase(anyString())).thenReturn(true);
+        RegisterRequest req = new RegisterRequest("bob@example.com", "bob", "pw");
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> controller.register(req));
+        when(userRepository.existsByEmailIgnoreCase(req.email())).thenReturn(true);
+
+        ResponseStatusException ex =
+                assertThrows(ResponseStatusException.class, () -> controller.register(req));
+
         assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        verify(userRepository).existsByEmailIgnoreCase(req.email());
+        verifyNoInteractions(authService);
     }
 
     @Test
     void login_success_returnsTokens() {
         LoginRequest req = new LoginRequest("alice@example.com", "pw");
-        CaroUser user = mock(CaroUser.class);
-        UUID id = UUID.randomUUID();
-        when(user.getId()).thenReturn(id);
-        when(user.getUsername()).thenReturn("alice");
-        when(user.getPasswordHash()).thenReturn("hashed");
-        when(userRepository.findByEmailOrUsername("alice@example.com")).thenReturn(Optional.of(user));
-        when(passwordEncoder.matches("pw", "hashed")).thenReturn(true);
-        when(jwtService.issueAccess(id, "alice")).thenReturn("access");
-        when(jwtService.issueRefresh(id)).thenReturn("refresh");
+
+        TokenResponse expected = new TokenResponse("access", "refresh");
+        when(authService.login(req)).thenReturn(expected);
 
         ResponseEntity<TokenResponse> resp = controller.login(req);
 
@@ -102,47 +77,42 @@ class AuthRestControllerTest {
         assertNotNull(resp.getBody());
         assertEquals("access", resp.getBody().accessToken());
         assertEquals("refresh", resp.getBody().refreshToken());
-        verify(refreshTokenRepository).deleteByUser(user);
-        verify(refreshTokenRepository).save(any(RefreshToken.class));
+
+        verify(authService).login(req);
     }
 
     @Test
-    void login_invalidPassword_throwsUnauthorized() {
-        LoginRequest req = new LoginRequest("alice", "wrong");
-        CaroUser user = mock(CaroUser.class);
-        when(user.getPasswordHash()).thenReturn("hashed");
-        when(userRepository.findByEmailOrUsername("alice")).thenReturn(Optional.of(user));
-        when(passwordEncoder.matches("wrong", "hashed")).thenReturn(false);
+    void login_invalidPayload_throwsBadRequest() {
+        LoginRequest req = new LoginRequest("alice", "   ");
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> controller.login(req));
+        ResponseStatusException ex =
+                assertThrows(ResponseStatusException.class, () -> controller.login(req));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verifyNoInteractions(authService);
+    }
+
+    @Test
+    void login_invalidCredentials_propagatesUnauthorizedFromService() {
+        LoginRequest req = new LoginRequest("alice", "wrong");
+
+        when(authService.login(req))
+                .thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
+
+        ResponseStatusException ex =
+                assertThrows(ResponseStatusException.class, () -> controller.login(req));
+
         assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
+        verify(authService).login(req);
     }
 
     @Test
     void refresh_success_issuesNewTokens() {
         String providedRefresh = "valid-refresh";
-        UUID uid = UUID.randomUUID();
         RefreshRequest req = new RefreshRequest(providedRefresh);
 
-        @SuppressWarnings("unchecked")
-        Jws<Claims> jws = mock(Jws.class);
-        Claims claims = mock(Claims.class);
-        when(jws.getBody()).thenReturn(claims);
-        when(claims.get("typ")).thenReturn("refresh");
-        when(claims.getSubject()).thenReturn(uid.toString());
-
-        when(jwtService.parse(providedRefresh)).thenReturn(jws);
-
-        RefreshToken stored = mock(RefreshToken.class);
-        CaroUser user = mock(CaroUser.class);
-        when(user.getId()).thenReturn(uid);
-        when(user.getUsername()).thenReturn("alice");
-        when(stored.getUser()).thenReturn(user);
-        when(stored.getExpiresAt()).thenReturn(Instant.now().plus(Duration.ofDays(1)));
-        when(refreshTokenRepository.findByToken(providedRefresh)).thenReturn(Optional.of(stored));
-
-        when(jwtService.issueAccess(uid, "alice")).thenReturn("new-access");
-        when(jwtService.issueRefresh(uid)).thenReturn("new-refresh");
+        TokenResponse expected = new TokenResponse("new-access", "new-refresh");
+        when(authService.refresh(req)).thenReturn(expected);
 
         ResponseEntity<TokenResponse> resp = controller.refresh(req);
 
@@ -151,46 +121,32 @@ class AuthRestControllerTest {
         assertEquals("new-access", resp.getBody().accessToken());
         assertEquals("new-refresh", resp.getBody().refreshToken());
 
-        verify(refreshTokenRepository).deleteByUser(user);
-        verify(refreshTokenRepository).save(any(RefreshToken.class));
+        verify(authService).refresh(req);
     }
 
     @Test
-    void refresh_typMismatch_throwsUnauthorized() {
+    void refresh_invalidPayload_throwsBadRequest() {
+        RefreshRequest req = new RefreshRequest("   ");
+
+        ResponseStatusException ex =
+                assertThrows(ResponseStatusException.class, () -> controller.refresh(req));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verifyNoInteractions(authService);
+    }
+
+    @Test
+    void refresh_unauthorized_propagatesFromService() {
         String providedRefresh = "bad-refresh";
         RefreshRequest req = new RefreshRequest(providedRefresh);
 
-        @SuppressWarnings("unchecked")
-        Jws<Claims> jws = mock(Jws.class);
-        Claims claims = mock(Claims.class);
-        when(jws.getBody()).thenReturn(claims);
-        when(claims.get("typ")).thenReturn("access"); // wrong type
+        when(authService.refresh(req))
+                .thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh"));
 
-        when(jwtService.parse(providedRefresh)).thenReturn(jws);
+        ResponseStatusException ex =
+                assertThrows(ResponseStatusException.class, () -> controller.refresh(req));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> controller.refresh(req));
         assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
-    }
-
-    @Test
-    void refresh_expired_throwsUnauthorized() {
-        String providedRefresh = "expired-refresh";
-        UUID uid = UUID.randomUUID();
-        RefreshRequest req = new RefreshRequest(providedRefresh);
-
-        @SuppressWarnings("unchecked")
-        Jws<Claims> jws = mock(Jws.class);
-        Claims claims = mock(Claims.class);
-        when(jws.getBody()).thenReturn(claims);
-        when(claims.get("typ")).thenReturn("refresh");
-        when(claims.getSubject()).thenReturn(uid.toString());
-        when(jwtService.parse(providedRefresh)).thenReturn(jws);
-
-        RefreshToken stored = mock(RefreshToken.class);
-        when(stored.getExpiresAt()).thenReturn(Instant.now().minus(Duration.ofDays(1))); // expired
-        when(refreshTokenRepository.findByToken(providedRefresh)).thenReturn(Optional.of(stored));
-
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> controller.refresh(req));
-        assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
+        verify(authService).refresh(req);
     }
 }
