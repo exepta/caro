@@ -45,3 +45,27 @@ You can run the frontend tests with the following command.
     cd apps/web
     pnpm test
 ```
+
+### OpenAPI for Frontend
+We use OpenAPI for generating rest access for the backend. You can find the current contract in `rootDir/share/openapi.json`.
+Note by using the command `pnpm install` openapi is triggered automatically. If the api folder not exist after install you can
+let create him manuel with `pnpm generate:api` or you use the bash below:
+
+```bash
+    cd apps/web
+    pnpm generate:api
+```
+
+### Troubleshooting
+
+1. Make sure you have installed Node 22 or above and you use the packed manager `pnpm`.
+   You can install `pnpm` via `corepack enable pnpm`.
+2. Docker is absolutely needed for the database and later more things. Make sure you have installed
+   docker and docker-compose on your system.
+
+| Operating System   | Link                                                           |
+|--------------------|----------------------------------------------------------------|
+| Windows 10 / 11    | https://docs.docker.com/desktop/setup/install/windows-install/ |
+| Linux Deb / Ubuntu | https://docs.docker.com/engine/install/debian                  |
+| Linux Arch         | https://docs.docker.com/desktop/setup/install/linux/archlinux/ |
+| Mac Os             | https://docs.docker.com/desktop/setup/install/mac-install/     |
