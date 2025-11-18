@@ -7,6 +7,7 @@
   "paths": {
     "/api/auth/register": {
       "post": {
+        "tags": ["InternalAuth"],
         "summary": "Register user",
         "operationId": "register",
         "requestBody": {
@@ -35,6 +36,7 @@
     },
     "/api/auth/login": {
       "post": {
+        "tags": ["InternalAuth"],
         "summary": "Login user",
         "operationId": "login",
         "requestBody": {
@@ -63,6 +65,7 @@
     },
     "/api/auth/refresh": {
       "post": {
+        "tags": ["InternalAuth"],
         "summary": "Refresh token",
         "operationId": "refresh",
         "requestBody": {
