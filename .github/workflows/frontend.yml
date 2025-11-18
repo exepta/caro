@@ -21,6 +21,13 @@ jobs:
         with:
           node-version: '22'
 
+      # 🔹 Java 21 für openapi-generator-cli
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
