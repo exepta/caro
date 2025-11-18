@@ -2,6 +2,7 @@
 
 [![frontend](https://github.com/exepta/caro/actions/workflows/frontend.yml/badge.svg)](https://github.com/exepta/caro/actions/workflows/frontend.yml)
 [![backend](https://github.com/exepta/caro/actions/workflows/backend.yml/badge.svg)](https://github.com/exepta/caro/actions/workflows/backend.yml)
+[![codecov](https://codecov.io/gh/exepta/caro/graph/badge.svg?token=HRG5FWW6G9)](https://codecov.io/gh/exepta/caro)
 
 ### Development setup
 To start with development, you need to run docker compose for postgres and redis databases.
