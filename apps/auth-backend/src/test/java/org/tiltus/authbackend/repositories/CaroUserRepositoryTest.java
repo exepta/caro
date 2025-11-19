@@ -149,4 +149,30 @@ class CaroUserRepositoryTest {
 
         assertFalse(result);
     }
+
+    @Test
+    void existsByUsernameIgnoreCaseAndTagId_returnsTrueWhenUserWithTagExists() {
+        String username = "testUser";
+        String tagId = "#1234";
+
+        Mockito.when(caroUserRepository.existsByUsernameIgnoreCaseAndTagId(username, tagId))
+                .thenReturn(true);
+
+        boolean result = caroUserRepository.existsByUsernameIgnoreCaseAndTagId(username, tagId);
+
+        assertTrue(result);
+    }
+
+    @Test
+    void existsByUsernameIgnoreCaseAndTagId_returnsFalseWhenUserWithTagDoesNotExist() {
+        String username = "nonexistentUser";
+        String tagId = "#9999";
+
+        Mockito.when(caroUserRepository.existsByUsernameIgnoreCaseAndTagId(username, tagId))
+                .thenReturn(false);
+
+        boolean result = caroUserRepository.existsByUsernameIgnoreCaseAndTagId(username, tagId);
+
+        assertFalse(result);
+    }
 }

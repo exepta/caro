@@ -1,0 +1,13 @@
+### GET request from the current user
+GET http://localhost:8080/api/user/me
+Authorization: Bearer {{refreshToken}}
+
+### PUT request to change settings from user
+PUT http://localhost:8080/api/user/me
+Authorization: Bearer {{refreshToken}}
+Content-Type: application/json
+
+{
+  "firstName": "Carolin",
+  "lastName": "Winter"
+}

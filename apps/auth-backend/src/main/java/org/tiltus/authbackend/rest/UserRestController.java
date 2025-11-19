@@ -1,0 +1,50 @@
+package org.tiltus.authbackend.rest;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+import org.tiltus.authbackend.model.CaroUser;
+import org.tiltus.authbackend.repositories.CaroUserRepository;
+import org.tiltus.authbackend.rest.requests.UserSettingsRequest;
+import org.tiltus.authbackend.rest.response.UserSettingsResponse;
+import org.tiltus.authbackend.services.CaroUserService;
+
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/user")
+@RequiredArgsConstructor
+public class UserRestController {
+
+    private final CaroUserRepository userRepository;
+    private final CaroUserService userService;
+
+    @GetMapping("/me")
+    public ResponseEntity<UserSettingsResponse> me(@AuthenticationPrincipal String userId) {
+        if (userId == null || userId.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid user id");
+        }
+        UUID uuid = UUID.fromString(userId);
+
+        CaroUser user = userRepository.findById(uuid)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        return ResponseEntity.ok(UserSettingsResponse.from(user));
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<UserSettingsResponse> updateMe(
+            @AuthenticationPrincipal String userId,
+            @RequestBody UserSettingsRequest request
+    ) {
+        if (userId == null || userId.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid user id");
+        }
+        CaroUser savedUser = userService.save(userId, request);
+        return ResponseEntity.ok(UserSettingsResponse.from(savedUser));
+    }
+
+}

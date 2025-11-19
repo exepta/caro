@@ -34,6 +34,7 @@ class SecurityConfigTest {
     @Mock
     private HttpSecurity httpSecurity;
 
+
     private final String allowedOrigins = "http://localhost:4200";
 
     @BeforeEach

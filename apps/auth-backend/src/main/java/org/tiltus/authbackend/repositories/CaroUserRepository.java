@@ -23,5 +23,6 @@ public interface CaroUserRepository extends JpaRepository<CaroUser, UUID> {
 
     boolean existsByEmailIgnoreCase(String email);
     boolean existsByUsernameIgnoreCase(String username);
+    boolean existsByUsernameIgnoreCaseAndTagId(String username, String tagId);
 
 }
