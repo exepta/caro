@@ -9,7 +9,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "generate:api": "openapi-generator-cli generate -i ../../shared/openapi.json -g typescript-angular -o src/app/api",
+    "generate:api": "openapi-generator-cli generate -i ../../shared/openapi/openapi.json -g typescript-angular -o src/app/api",
     "prepare": "pnpm run generate:api"
   },
   "prettier": {

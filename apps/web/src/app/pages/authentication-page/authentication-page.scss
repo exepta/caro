@@ -2,7 +2,7 @@
   width: 400px;
   padding: 2rem;
   border-radius: 12px;
-  background: #191b20;
+  background: #292b36;
   color: #fff;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   display: flex;
@@ -31,4 +31,8 @@
       filter: brightness(1.1);
     }
   }
+}
+
+h1 {
+  margin-bottom: 10px;
 }
