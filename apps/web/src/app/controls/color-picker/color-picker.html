@@ -1,0 +1,68 @@
+<div class="color-picker">
+  <div class="canvas-wrapper">
+    <canvas
+      #colorCanvas
+      width="260"
+      height="160"
+      (mousedown)="onCanvasMouseDown($event)"
+      (mousemove)="onCanvasMouseMove($event)"
+      (mouseup)="onCanvasMouseUp()"
+      (mouseleave)="onCanvasMouseLeave()"
+    ></canvas>
+
+    <div
+      class="color-preview"
+      [style.background]="hex"
+      title="Current Color"
+    ></div>
+  </div>
+
+  <div class="inputs">
+    <div class="input-group">
+      <label for="r">R</label>
+      <input
+        id="r"
+        type="number"
+        min="0"
+        max="255"
+        [value]="red"
+        (input)="onRgbInput('red', $event)"
+      />
+    </div>
+
+    <div class="input-group">
+      <label for="green">G</label>
+      <input
+        id="green"
+        type="number"
+        min="0"
+        max="255"
+        [value]="green"
+        (input)="onRgbInput('green', $event)"
+      />
+    </div>
+
+    <div class="input-group">
+      <label for="blue">B</label>
+      <input
+        id="blue"
+        type="number"
+        min="0"
+        max="255"
+        [value]="blue"
+        (input)="onRgbInput('blue', $event)"
+      />
+    </div>
+
+    <div class="input-group hex-group">
+      <label for="hex">Hex</label>
+      <input
+        id="hex"
+        type="text"
+        [value]="hex"
+        (input)="onHexInput($event)"
+        placeholder="#rrggbb"
+      />
+    </div>
+  </div>
+</div>

@@ -31,6 +31,34 @@
     justify-content: space-between;
     align-items: center;
   }
+
+}
+
+.color-palette {
+  width: 100%;
+  min-height: 35px;
+  max-height: 200px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-start;
+
+  .color-pick {
+    width: 35px;
+    height: 35px;
+    min-width: 35px;
+    min-height: 35px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: .2s all;
+    filter: brightness(1);
+    transform: scale(1);
+
+    &:hover {
+      filter: brightness(1.15);
+      transform: scale(1.05);
+    }
+  }
 }
 
 .separator {
