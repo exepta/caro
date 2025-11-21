@@ -1,1 +1,22 @@
-<p>settings-privacy-and-security-module works!</p>
+<div class="card-set">
+  <h5>Firstname</h5>
+  <div class="input-show-container">
+    <input type="text" class="normal-input-field"/>
+    <app-switch-button [(value)]="firstNameVisible" />
+  </div>
+</div>
+
+<div class="card-set">
+  <h5>Lastname</h5>
+  <div class="input-show-container">
+    <input type="text" class="normal-input-field"/>
+    <app-switch-button [(value)]="lastNameVisible" />
+  </div>
+</div>
+
+<div class="info-text-container">
+  <p>
+    <span class="accent-highlight">Show</span> means that your firstname and lastname will be shown to other users. As a example, you have a user page
+    and the firstname and lastname will be shown on this page. <span class="bold">If the switch button on, all users can see your firstname and lastname!</span>
+  </p>
+</div>

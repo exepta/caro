@@ -12,6 +12,38 @@
   <div class="controls-container">
     <div class="controls">
 
+      @for (control of acc_edits; track control) {
+        <div class="control">
+          <div class="current-value">
+            <h4>{{ control.label }}</h4>
+            <span class="value">{{ control.value }}</span>
+          </div>
+
+          <div class="edit-button">
+            <button class="normal-btn">Edit</button>
+          </div>
+        </div>
+      }
     </div>
   </div>
+</div>
+
+<div class="card-set">
+  <h5>Avatar</h5>
+  <div class="button-container">
+    <button class="primary-btn">Upload</button>
+    <button class="normal-btn">Remove</button>
+  </div>
+</div>
+
+<div class="card-set">
+  <h5>Banner</h5>
+  <div class="button-container">
+    <button class="primary-btn">Upload</button>
+    <button class="normal-btn">Remove</button>
+  </div>
+</div>
+
+<div class="card-set">
+  <h5>Accent Color</h5>
 </div>

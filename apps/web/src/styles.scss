@@ -60,3 +60,63 @@ h3 {
 .headline-uppercase {
   text-transform: uppercase;
 }
+
+.normal-btn {
+  width: 140px;
+  height: 35px;
+  color: #e0e0e0;
+  font-size: 0.95rm;
+  background: #191b20;
+  border-radius: 4px;
+  outline: none;
+  border: none;
+  cursor: pointer;
+  transition: .2s all;
+
+  &:hover {
+    filter: brightness(1.2);
+  }
+}
+
+.primary-btn {
+  width: 140px;
+  height: 35px;
+  color: #e0e0e0;
+  font-size: 0.95rm;
+  background: #5c3ad4;
+  border-radius: 4px;
+  outline: none;
+  border: none;
+  cursor: pointer;
+  transition: .2s all;
+
+  &:hover {
+    filter: brightness(1.2);
+  }
+}
+
+.accent-highlight {
+  color: #5c3ad4;
+  font-weight: bold;
+  filter: brightness(1.2);
+}
+
+.bold {
+  font-weight: bolder;
+}
+
+.normal-input-field {
+  width: 200px;
+  height: 35px;
+  background: #191b20;
+  outline: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0 10px;
+  color: #e0e0e0;
+  transition: .2s all;
+
+  &:hover, &:focus {
+    border: 1px solid #5c3ad4;
+  }
+}

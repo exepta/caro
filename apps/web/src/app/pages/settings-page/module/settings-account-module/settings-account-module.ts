@@ -4,8 +4,18 @@ import { Component } from '@angular/core';
   selector: 'app-settings-account-module',
   imports: [],
   templateUrl: './settings-account-module.html',
-  styleUrl: './settings-account-module.scss',
+  styleUrls: [
+    './settings-account-module.scss',
+    '../../../../shared/styles/global-settings.scss',
+  ],
 })
 export class SettingsAccountModule {
+
+  acc_edits = [
+    { label: 'Displayname', value: 'Exepta' },
+    { label: 'Username', value: 'exepta' },
+    { label: 'Email', value: 'dev@caro.de' },
+    { label: 'Mobil', value: '0179 66753622' },
+  ]
 
 }

@@ -1,0 +1,9 @@
+<label class="switch-container" [class.checked]="value">
+  <input
+    type="checkbox"
+    [checked]="value"
+    [disabled]="disabled"
+    (change)="onToggle()"
+  />
+  <span class="slider"></span>
+</label>
