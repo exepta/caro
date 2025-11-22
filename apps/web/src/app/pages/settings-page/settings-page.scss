@@ -26,6 +26,7 @@
   }
 
   .right-container-side {
+    position: relative;
     width: 65%;
     min-width: 200px;
     height: 100%;
@@ -44,6 +45,7 @@
     }
 
     .main-content {
+      position: relative;
       width: 100%;
       min-width: 320px;
       height: 100%;
@@ -112,10 +114,11 @@ h3 {
 }
 
 .unsaved-changes-bar {
-  position: fixed;
+  position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: 20px;
+  width: 100%;
 
   display: flex;
   align-items: center;
@@ -125,6 +128,7 @@ h3 {
   padding: 0.75rem 1.5rem;
   background: #191b20;
   border-top: 1px solid #333;
+  border-radius: 6px;
   color: #e0e0e0;
   font-size: 0.9rem;
   z-index: 1000;

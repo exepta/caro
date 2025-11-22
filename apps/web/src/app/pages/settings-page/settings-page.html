@@ -31,6 +31,22 @@
             <p>Page not found</p>
           }
         }
+
+        @if (hasUnsavedChanges()) {
+          <div class="unsaved-changes-bar">
+            <span>There was changes detected! Save before leave.</span>
+
+            <div class="unsaved-actions">
+              <button type="button" class="btn-secondary" (click)="onRevoke()">
+                Revoke
+              </button>
+
+              <button type="button" class="btn-primary" (click)="onSave()">
+                Save
+              </button>
+            </div>
+          </div>
+        }
       </div>
     </div>
   </div>
@@ -42,19 +58,3 @@
 >
   X
 </button>
-
-@if (hasUnsavedChanges()) {
-  <div class="unsaved-changes-bar">
-    <span>There was changes detected! Save before leave.</span>
-
-    <div class="unsaved-actions">
-      <button type="button" class="btn-secondary" (click)="onRevoke()">
-        Revoke
-      </button>
-
-      <button type="button" class="btn-primary" (click)="onSave()">
-        Save
-      </button>
-    </div>
-  </div>
-}
