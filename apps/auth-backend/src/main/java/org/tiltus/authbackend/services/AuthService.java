@@ -9,6 +9,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import org.tiltus.authbackend.model.CaroUser;
+import org.tiltus.authbackend.model.CaroUserProfile;
 import org.tiltus.authbackend.model.RefreshToken;
 import org.tiltus.authbackend.repositories.CaroUserRepository;
 import org.tiltus.authbackend.repositories.RefreshTokenRepository;
@@ -40,6 +41,7 @@ public class AuthService {
                 ""
         );
         user.setTagId(generateTagId(request.username()));
+        user.setProfile(new CaroUserProfile());
         CaroUser savedUser = userRepository.save(user);
 
         return issueTokensFor(savedUser);

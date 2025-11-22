@@ -1,30 +1,37 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { AuthenticationPage } from './authentication-page';
-import { AuthService } from '../../services/auth.service';
-
-class AuthServiceMock {
-  login = jest.fn();
-  register = jest.fn();
-}
 
 describe('AuthenticationPage', () => {
   let component: AuthenticationPage;
-  let fixture: ComponentFixture<AuthenticationPage>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [AuthenticationPage],
+      imports: [
+        AuthenticationPage, // standalone component
+      ],
       providers: [
-        { provide: AuthService, useClass: AuthServiceMock },
+        provideHttpClient(),
+        provideHttpClientTesting(), // ersetzt HttpClientTestingModule
       ],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(AuthenticationPage);
+    const fixture = TestBed.createComponent(AuthenticationPage);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('should have "login" as default mode', () => {
+    expect(component.mode()).toBe('login');
+  });
+
+  it('should allow switching mode to "register"', () => {
+    component.mode.set('register');
+    expect(component.mode()).toBe('register');
   });
 });

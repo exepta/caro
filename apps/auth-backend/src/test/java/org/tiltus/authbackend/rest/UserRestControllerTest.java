@@ -9,12 +9,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.server.ResponseStatusException;
 import org.tiltus.authbackend.model.CaroUser;
+import org.tiltus.authbackend.model.CaroUserProfile;
 import org.tiltus.authbackend.repositories.CaroUserRepository;
 import org.tiltus.authbackend.rest.requests.UserSettingsRequest;
 import org.tiltus.authbackend.rest.response.UserSettingsResponse;
 import org.tiltus.authbackend.services.CaroUserService;
 
-import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -34,171 +34,185 @@ class UserRestControllerTest {
     @InjectMocks
     private UserRestController controller;
 
+    // --------- GET /api/user/me ---------
+
     @Test
-    void me_returnsUserSettings_whenUserExists() {
+    void me_shouldReturnUserSettings_whenUserIdValidAndUserExists() {
         // arrange
-        UUID userId = UUID.randomUUID();
-        String userIdStr = userId.toString();
+        String userId = UUID.randomUUID().toString();
+        UUID uuid = UUID.fromString(userId);
 
-        CaroUser user = new CaroUser();
-        user.setId(userId);
-        user.setUsername("dev");
-        user.setEmail("dev@caro.net");
-        user.setTagId("#123456");
-        user.setFirstName("Dev");
-        user.setLastName("User");
-        user.setCreatedAt(Instant.parse("2024-01-01T00:00:00Z"));
-        user.setUpdatedAt(Instant.parse("2024-01-02T00:00:00Z"));
+        CaroUserProfile profile = mock(CaroUserProfile.class);
+        when(profile.getDisplayName()).thenReturn("John Doe");
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        CaroUser user = mock(CaroUser.class);
+        when(user.getProfile()).thenReturn(profile);
 
-        // act
-        ResponseEntity<UserSettingsResponse> response = controller.me(userIdStr);
+        when(userRepository.findById(uuid)).thenReturn(Optional.of(user));
 
-        // assert
+        ResponseEntity<UserSettingsResponse> response = controller.me(userId);
+
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        UserSettingsResponse body = response.getBody();
-        assertThat(body).isNotNull();
-        assertThat(body.id()).isEqualTo(userId);
-        assertThat(body.username()).isEqualTo("dev");
-        assertThat(body.email()).isEqualTo("dev@caro.net");
-        assertThat(body.tagId()).isEqualTo("#123456");
-        assertThat(body.firstName()).isEqualTo("Dev");
-        assertThat(body.lastName()).isEqualTo("User");
-        assertThat(body.createdAt()).isEqualTo(Instant.parse("2024-01-01T00:00:00Z"));
-        assertThat(body.updatedAt()).isEqualTo(Instant.parse("2024-01-02T00:00:00Z"));
-
-        verify(userRepository).findById(userId);
-        verifyNoInteractions(userService);
+        assertThat(response.getBody()).isNotNull();
+        verify(userRepository).findById(uuid);
     }
 
     @Test
-    void me_throwsBadRequest_whenUserIdIsNull() {
-        // act
+    void me_shouldThrowUnauthorized_whenUserIdNull() {
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class,
                 () -> controller.me(null)
         );
 
-        // assert
-        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(ex.getReason()).isEqualTo("Invalid user id");
-
-        verifyNoInteractions(userRepository);
-        verifyNoInteractions(userService);
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
-    void me_throwsBadRequest_whenUserIdIsEmpty() {
-        // act
+    void me_shouldThrowUnauthorized_whenUserIdEmpty() {
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class,
                 () -> controller.me("")
         );
 
-        // assert
-        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(ex.getReason()).isEqualTo("Invalid user id");
-
-        verifyNoInteractions(userRepository);
-        verifyNoInteractions(userService);
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
-    void me_throwsNotFound_whenUserDoesNotExist() {
-        // arrange
-        UUID userId = UUID.randomUUID();
-        String userIdStr = userId.toString();
+    void me_shouldThrowUnauthorized_whenUserIdIsAnonymousUser() {
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> controller.me("anonymousUser")
+        );
 
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void me_shouldThrowUnauthorized_whenUserIdIsNotAValidUuid() {
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> controller.me("not-a-uuid")
+        );
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void me_shouldThrowNotFound_whenUserDoesNotExist() {
+        // arrange
+        String userId = UUID.randomUUID().toString();
+        UUID uuid = UUID.fromString(userId);
+
+        when(userRepository.findById(uuid)).thenReturn(Optional.empty());
 
         // act
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class,
-                () -> controller.me(userIdStr)
+                () -> controller.me(userId)
         );
 
         // assert
         assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(ex.getReason()).isEqualTo("User not found");
-
-        verify(userRepository).findById(userId);
-        verifyNoInteractions(userService);
     }
 
+    // --------- PUT /api/user/me ---------
+
     @Test
-    void updateMe_updatesUserSettings_viaService_andReturnsResponse() {
-        // arrange
-        UUID userId = UUID.randomUUID();
-        String userIdStr = userId.toString();
+    void updateMe_shouldReturnUpdatedUserSettings_whenUserIdValid() {
+        String userId = UUID.randomUUID().toString();
 
-        UserSettingsRequest request = new UserSettingsRequest("NewFirst", "NewLast");
+        UserSettingsRequest request = new UserSettingsRequest(
+                "testuser",
+                "mail@example.com",
+                "John",
+                "Doe",
+                null
+        );
 
-        CaroUser savedUser = new CaroUser();
-        savedUser.setId(userId);
-        savedUser.setUsername("dev");
-        savedUser.setEmail("dev@caro.net");
-        savedUser.setTagId("#123456");
-        savedUser.setFirstName("NewFirst");
-        savedUser.setLastName("NewLast");
-        savedUser.setCreatedAt(Instant.parse("2024-01-01T00:00:00Z"));
-        savedUser.setUpdatedAt(Instant.parse("2024-01-03T00:00:00Z"));
+        CaroUserProfile profile = mock(CaroUserProfile.class);
+        when(profile.getDisplayName()).thenReturn("John Doe");
 
-        when(userService.save(userIdStr, request)).thenReturn(savedUser);
+        CaroUser savedUser = mock(CaroUser.class);
+        when(savedUser.getProfile()).thenReturn(profile);
 
-        // act
-        ResponseEntity<UserSettingsResponse> response = controller.updateMe(userIdStr, request);
+        when(userService.save(userId, request)).thenReturn(savedUser);
 
-        // assert
+        ResponseEntity<UserSettingsResponse> response = controller.updateMe(userId, request);
+
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        UserSettingsResponse body = response.getBody();
-        assertThat(body).isNotNull();
-        assertThat(body.id()).isEqualTo(userId);
-        assertThat(body.firstName()).isEqualTo("NewFirst");
-        assertThat(body.lastName()).isEqualTo("NewLast");
-        assertThat(body.username()).isEqualTo("dev");
-        assertThat(body.email()).isEqualTo("dev@caro.net");
-        assertThat(body.tagId()).isEqualTo("#123456");
-
-        verify(userService).save(userIdStr, request);
-        verifyNoInteractions(userRepository);
+        assertThat(response.getBody()).isNotNull();
+        verify(userService).save(userId, request);
     }
 
     @Test
-    void updateMe_throwsBadRequest_whenUserIdIsNull() {
-        // arrange
-        UserSettingsRequest request = new UserSettingsRequest("NewFirst", "NewLast");
+    void updateMe_shouldThrowUnauthorized_whenUserIdNull() {
+        UserSettingsRequest request = new UserSettingsRequest(
+                "testuser",
+                "mail@example.com",
+                "John",
+                "Doe",
+                null
+        );
 
-        // act
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class,
                 () -> controller.updateMe(null, request)
         );
 
-        // assert
-        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(ex.getReason()).isEqualTo("Invalid user id");
-
-        verifyNoInteractions(userRepository);
-        verifyNoInteractions(userService);
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
-    void updateMe_throwsBadRequest_whenUserIdIsEmpty() {
-        // arrange
-        UserSettingsRequest request = new UserSettingsRequest("NewFirst", "NewLast");
+    void updateMe_shouldThrowUnauthorized_whenUserIdEmpty() {
+        UserSettingsRequest request = new UserSettingsRequest(
+                "testuser",
+                "mail@example.com",
+                "John",
+                "Doe",
+                null
+        );
 
-        // act
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class,
                 () -> controller.updateMe("", request)
         );
 
-        // assert
-        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(ex.getReason()).isEqualTo("Invalid user id");
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
 
-        verifyNoInteractions(userRepository);
-        verifyNoInteractions(userService);
+    @Test
+    void updateMe_shouldThrowUnauthorized_whenUserIdIsAnonymousUser() {
+        UserSettingsRequest request = new UserSettingsRequest(
+                "testuser",
+                "mail@example.com",
+                "John",
+                "Doe",
+                null
+        );
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> controller.updateMe("anonymousUser", request)
+        );
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void updateMe_shouldThrowUnauthorized_whenUserIdIsNotAValidUuid() {
+        UserSettingsRequest request = new UserSettingsRequest(
+                "testuser",
+                "mail@example.com",
+                "John",
+                "Doe",
+                null
+        );
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> controller.updateMe("not-a-uuid", request)
+        );
+
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 }

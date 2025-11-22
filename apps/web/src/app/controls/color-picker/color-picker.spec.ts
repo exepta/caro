@@ -1,254 +1,226 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
+import { ElementRef } from '@angular/core';
 import { ColorPicker } from './color-picker';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 
 describe('ColorPicker', () => {
   let component: ColorPicker;
-  let fixture: ComponentFixture<ColorPicker>;
+  let canvas: HTMLCanvasElement;
+  let ctx: any;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [ColorPicker],
+      providers: [
+        provideHttpClientTesting(),
+      ],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(ColorPicker);
+    const fixture = TestBed.createComponent(ColorPicker);
     component = fixture.componentInstance;
-  });
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
+    canvas = document.createElement('canvas');
+    canvas.width = 100;
+    canvas.height = 50;
 
-  it('should initialize canvas context and draw palette in ngAfterViewInit', () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 10;
-    canvas.height = 10;
-
-    const gradientMock = { addColorStop: jest.fn() };
-    const ctxMock = {
-      createLinearGradient: jest.fn(() => gradientMock),
+    ctx = {
+      createLinearGradient: jest.fn(() => ({
+        addColorStop: jest.fn(),
+      })),
       fillRect: jest.fn(),
-    } as unknown as CanvasRenderingContext2D;
+      getImageData: jest.fn().mockReturnValue({
+        data: new Uint8ClampedArray([10, 20, 30, 255]),
+      }),
+      fillStyle: '' as any,
+    };
 
-    const getContextSpy = jest
-      .spyOn(canvas, 'getContext')
-      .mockReturnValue(ctxMock);
+    (canvas as any).getContext = jest.fn(() => ctx);
+    (canvas as any).getBoundingClientRect = jest.fn(() => ({
+      left: 0,
+      top: 0,
+      right: 100,
+      bottom: 50,
+      width: 100,
+      height: 50,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    }));
 
-    // fake ViewChild
-    (component as any).colorCanvas = { nativeElement: canvas };
+    (component as any).colorCanvas = new ElementRef<HTMLCanvasElement>(canvas);
+  });
 
+  it('ngAfterViewInit should get context and draw palette', () => {
     component.ngAfterViewInit();
 
-    expect(getContextSpy).toHaveBeenCalledWith('2d');
-    expect(ctxMock.createLinearGradient).toHaveBeenCalled();
-    expect(ctxMock.fillRect).toHaveBeenCalled();
+    expect((canvas as any).getContext).toHaveBeenCalledWith('2d');
+    expect(ctx.createLinearGradient).toHaveBeenCalled();
+    expect(ctx.fillRect).toHaveBeenCalled();
   });
 
-  it('should sync RGB and hex when @Input color changes via ngOnChanges without emitting', () => {
-    const emitSpy = jest.spyOn(component.colorChange, 'emit');
+  it('ngOnChanges should apply color without emitting event', () => {
+    const emitted: string[] = [];
+    component.colorChange.subscribe((c) => emitted.push(c));
 
-    component.color = '#123456';
+    component.color = '#00ff00';
 
     component.ngOnChanges({
       color: {
         previousValue: '#ff0000',
-        currentValue: '#123456',
+        currentValue: '#00ff00',
         firstChange: false,
         isFirstChange: () => false,
-      },
+      } as any,
     });
 
-    expect(component.red).toBe(0x12);
-    expect(component.green).toBe(0x34);
-    expect(component.blue).toBe(0x56);
-    expect(component.hex).toBe('#123456');
-    expect(component.color).toBe('#123456');
-    expect(emitSpy).not.toHaveBeenCalled();
+    expect(component.hex).toBe('#00ff00');
+    expect(component.red).toBe(0);
+    expect(component.green).toBe(255);
+    expect(component.blue).toBe(0);
+    expect(emitted.length).toBe(0);
   });
 
-  it('should pick color from canvas and update RGB via pickColorFromEvent', () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 10;
-    canvas.height = 10;
+  it('onCanvasMouseDown should start dragging and pick color', () => {
+    component.ngAfterViewInit();
 
-    const ctxMock = {
-      getImageData: jest.fn(() => ({
-        data: new Uint8ClampedArray([10, 20, 30, 255]),
-      })),
-    } as unknown as CanvasRenderingContext2D;
+    const emitted: string[] = [];
+    component.colorChange.subscribe((c) => emitted.push(c));
 
-    (component as any).ctx = ctxMock;
-    jest
-      .spyOn(canvas, 'getBoundingClientRect')
-      .mockReturnValue({ left: 0, top: 0, width: 10, height: 10 } as any);
-    (component as any).colorCanvas = { nativeElement: canvas };
+    const event = { clientX: 10, clientY: 20 } as MouseEvent;
 
-    const evt = new MouseEvent('mousedown', {
-      clientX: 5,
-      clientY: 5,
-    });
+    component.onCanvasMouseDown(event);
 
-    (component as any).pickColorFromEvent(evt);
-
-    expect(ctxMock.getImageData).toHaveBeenCalled();
+    expect((component as any).isDragging).toBe(true);
+    expect(ctx.getImageData).toHaveBeenCalled();
     expect(component.red).toBe(10);
     expect(component.green).toBe(20);
     expect(component.blue).toBe(30);
+    expect(emitted.length).toBe(1);
+    expect(emitted[0]).toBe(component.color);
   });
 
-  it('should start and stop dragging on canvas mouse events', () => {
-    const pickSpy = jest
-      .spyOn<any, any>(component as any, 'pickColorFromEvent')
-      .mockImplementation(() => {});
+  it('onCanvasMouseMove should only pick color while dragging', () => {
+    component.ngAfterViewInit();
 
-    expect((component as any).isDragging).toBe(false);
+    const emitted: string[] = [];
+    component.colorChange.subscribe((c) => emitted.push(c));
 
-    const mouseDown = new MouseEvent('mousedown');
-    component.onCanvasMouseDown(mouseDown);
-    expect((component as any).isDragging).toBe(true);
-    expect(pickSpy).toHaveBeenCalledWith(mouseDown);
+    const event = { clientX: 5, clientY: 5 } as MouseEvent;
 
-    const mouseMove = new MouseEvent('mousemove');
-    component.onCanvasMouseMove(mouseMove);
-    expect(pickSpy).toHaveBeenLastCalledWith(mouseMove);
+    (component as any).isDragging = false;
+    component.onCanvasMouseMove(event);
+    expect(ctx.getImageData).not.toHaveBeenCalled();
+
+    (component as any).isDragging = true;
+    component.onCanvasMouseMove(event);
+    expect(ctx.getImageData).toHaveBeenCalled();
+    expect(emitted.length).toBe(1);
+  });
+
+  it('onCanvasMouseUp and onCanvasMouseLeave should stop dragging', () => {
+    (component as any).isDragging = true;
 
     component.onCanvasMouseUp();
     expect((component as any).isDragging).toBe(false);
 
-    component.onCanvasMouseDown(mouseDown);
-    expect((component as any).isDragging).toBe(true);
+    (component as any).isDragging = true;
     component.onCanvasMouseLeave();
     expect((component as any).isDragging).toBe(false);
   });
 
-  // --- RGB Inputs ---
-  it('should update red channel from RGB input, clamp value and emit hex color', () => {
-    const emitSpy = jest.spyOn(component.colorChange, 'emit');
+  it('onRgbInput should clamp and set RGB for each channel and emit', () => {
+    const emitted: string[] = [];
+    component.colorChange.subscribe((c) => emitted.push(c));
 
-    component.red = 0;
-    component.green = 0;
-    component.blue = 0;
-
-    const event = {
-      target: { value: '300' },
-    } as unknown as Event;
-
-    component.onRgbInput('red', event);
-
+    component.onRgbInput('red', { target: { value: '300' } } as any);
     expect(component.red).toBe(255);
-    expect(component.green).toBe(0);
-    expect(component.blue).toBe(0);
-    expect(component.hex).toBe('#ff0000');
-    expect(component.color).toBe('#ff0000');
-    expect(emitSpy).toHaveBeenCalledWith('#ff0000');
-  });
 
-  it('should update green and blue from RGB input and emit combined hex', () => {
-    const emitSpy = jest.spyOn(component.colorChange, 'emit');
-
-    component.red = 10;
-    component.green = 20;
-    component.blue = 30;
-
-    const greenEvent = {
-      target: { value: '100' },
-    } as unknown as Event;
-    const blueEvent = {
-      target: { value: '200' },
-    } as unknown as Event;
-
-    component.onRgbInput('green', greenEvent);
-    component.onRgbInput('blue', blueEvent);
-
-    expect(component.red).toBe(10);
-    expect(component.green).toBe(100);
-    expect(component.blue).toBe(200);
-    expect(component.hex).toBe('#0a64c8');
-    expect(component.color).toBe('#0a64c8');
-    expect(emitSpy).toHaveBeenLastCalledWith('#0a64c8');
-  });
-
-  it('should handle NaN and negative RGB input as 0 and emit', () => {
-    const emitSpy = jest.spyOn(component.colorChange, 'emit');
-
-    const nanEvent = {
-      target: { value: 'abc' },
-    } as unknown as Event;
-
-    component.onRgbInput('blue', nanEvent);
-    expect(component.blue).toBe(0);
-
-    const negativeEvent = {
-      target: { value: '-10' },
-    } as unknown as Event;
-
-    component.onRgbInput('green', negativeEvent);
+    component.onRgbInput('green', { target: { value: '-5' } } as any);
     expect(component.green).toBe(0);
 
-    expect(emitSpy).toHaveBeenCalledTimes(2);
+    component.onRgbInput('blue', { target: { value: '128' } } as any);
+    expect(component.blue).toBe(128);
+
+    expect(emitted.length).toBe(3);
+    expect(component.hex).toBe(component.color);
   });
 
-  it('should update RGB and hex on valid hex input and emit', () => {
-    const emitSpy = jest.spyOn(component.colorChange, 'emit');
+  it('onRgbInput should treat NaN as 0', () => {
+    const emitted: string[] = [];
+    component.colorChange.subscribe((c) => emitted.push(c));
 
-    const event = {
-      target: { value: '#00ff7f' },
-    } as unknown as Event;
+    component.onRgbInput('red', { target: { value: 'abc' } } as any);
+    expect(component.red).toBe(0);
+    expect(emitted.length).toBe(1);
+  });
 
-    component.onHexInput(event);
+  it('onHexInput should apply hex and emit when valid', () => {
+    const emitted: string[] = [];
+    component.colorChange.subscribe((c) => emitted.push(c));
 
+    component.onHexInput({ target: { value: '#00ff00' } } as any);
+
+    expect(component.hex).toBe('#00ff00');
     expect(component.red).toBe(0);
     expect(component.green).toBe(255);
-    expect(component.blue).toBe(127);
-    expect(component.hex).toBe('#00ff7f');
-    expect(component.color).toBe('#00ff7f');
-    expect(emitSpy).toHaveBeenCalledWith('#00ff7f');
+    expect(component.blue).toBe(0);
+    expect(emitted.length).toBe(1);
+    expect(emitted[0]).toBe('#00ff00');
   });
 
-  it('should expand short hex (#rgb) to #rrggbb and emit', () => {
-    const emitSpy = jest.spyOn(component.colorChange, 'emit');
+  it('applyHex should normalize short hex (#0f0 -> #00ff00) and emit', () => {
+    const emitted: string[] = [];
+    component.colorChange.subscribe((c) => emitted.push(c));
 
-    const event = {
-      target: { value: '#f0a' },
-    } as unknown as Event;
+    (component as any).applyHex('#0f0', true);
 
-    component.onHexInput(event);
-
-    expect(component.hex).toBe('#ff00aa');
-    expect(component.red).toBe(0xff);
-    expect(component.green).toBe(0x00);
-    expect(component.blue).toBe(0xaa);
-    expect(component.color).toBe('#ff00aa');
-    expect(emitSpy).toHaveBeenCalledWith('#ff00aa');
+    expect(component.hex).toBe('#00ff00');
+    expect(component.red).toBe(0);
+    expect(component.green).toBe(255);
+    expect(component.blue).toBe(0);
+    expect(emitted.length).toBe(1);
+    expect(emitted[0]).toBe('#00ff00');
   });
 
-  it('should set hex only and not emit on invalid hex input', () => {
-    const emitSpy = jest.spyOn(component.colorChange, 'emit');
+  it('applyHex should handle hex without leading # and emit', () => {
+    const emitted: string[] = [];
+    component.colorChange.subscribe((c) => emitted.push(c));
 
-    component.red = 10;
-    component.green = 20;
-    component.blue = 30;
-    component.hex = '#0a141e';
-    component.color = '#0a141e';
+    (component as any).applyHex('0000ff', true);
 
-    const event = {
-      target: { value: 'zzzzzz' },
-    } as unknown as Event;
+    expect(component.hex).toBe('#0000ff');
+    expect(component.red).toBe(0);
+    expect(component.green).toBe(0);
+    expect(component.blue).toBe(255);
+    expect(emitted.length).toBe(1);
+    expect(emitted[0]).toBe('#0000ff');
+  });
 
-    component.onHexInput(event);
+  it('applyHex should not emit and keep hex when invalid value is given', () => {
+    const emitted: string[] = [];
+    component.colorChange.subscribe((c) => emitted.push(c));
 
-    expect(component.red).toBe(10);
-    expect(component.green).toBe(20);
-    expect(component.blue).toBe(30);
+    (component as any).applyHex('zzzzzz', true);
+
     expect(component.hex).toBe('zzzzzz');
-    expect(component.color).toBe('#0a141e');
-    expect(emitSpy).not.toHaveBeenCalled();
+    expect(emitted.length).toBe(0);
   });
 
-  it('rgbToHex and hexToRgb should convert consistently', () => {
-    const hex = (component as any).rgbToHex(17, 34, 51);
-    expect(hex).toBe('#112233');
+  it('rgbToHex and hexToRgb should be consistent', () => {
+    const emitted: string[] = [];
+    component.colorChange.subscribe((c) => emitted.push(c));
 
-    const rgb = (component as any).hexToRgb('#112233');
-    expect(rgb).toEqual({ r: 17, g: 34, b: 51 });
+    // setRgb -> updateHexFromRgb -> rgbToHex
+    (component as any).setRgb(12, 34, 56, true);
+    const hex = component.hex;
+
+    // applyHex -> hexToRgb
+    (component as any).applyHex(hex, true);
+
+    expect(component.red).toBe(12);
+    expect(component.green).toBe(34);
+    expect(component.blue).toBe(56);
+    expect(hex).toBe('#0c2238');
+    expect(emitted.length).toBeGreaterThanOrEqual(2);
   });
 });

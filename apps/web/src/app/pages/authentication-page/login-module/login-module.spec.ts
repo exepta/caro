@@ -1,150 +1,177 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
+import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { of, throwError } from 'rxjs';
-
 import { LoginModule } from './login-module';
 import { AuthService } from '../../../services/auth.service';
+import { UserService } from '../../../services/user.service';
 import { Router } from '@angular/router';
-
-class AuthServiceMock {
-  login = jest.fn();
-}
 
 describe('LoginModule', () => {
   let component: LoginModule;
-  let fixture: ComponentFixture<LoginModule>;
-  let authService: AuthServiceMock;
-  let router: { navigateByUrl: jest.Mock<Promise<boolean>, [string]> };
+
+  const authServiceMock = {
+    login: jest.fn(),
+  };
+
+  const userServiceMock = {
+    loadCurrentUser: jest.fn(),
+  };
+
+  const routerMock = {
+    navigateByUrl: jest.fn().mockResolvedValue(true),
+  };
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [LoginModule],
       providers: [
-        { provide: AuthService, useClass: AuthServiceMock },
-        {
-          provide: Router,
-          useValue: {
-            navigateByUrl: jest.fn().mockResolvedValue(true),
-          } as Partial<Router>,
-        },
+        { provide: AuthService, useValue: authServiceMock },
+        { provide: UserService, useValue: userServiceMock },
+        { provide: Router, useValue: routerMock },
       ],
+      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(LoginModule);
+    const fixture = TestBed.createComponent(LoginModule);
     component = fixture.componentInstance;
-    authService = TestBed.inject(AuthService) as unknown as AuthServiceMock;
-    router = TestBed.inject(Router) as unknown as {
-      navigateByUrl: jest.Mock<Promise<boolean>, [string]>;
-    };
 
-    fixture.detectChanges();
+    jest.clearAllMocks();
   });
 
   it('should create', () => {
     expect(component).toBeTruthy();
   });
 
-  it('displays error when email or password is missing', () => {
-    component.email.set('');
-    component.password.set('');
-
-    component.submit(new Event('submit'));
-
-    expect(component.error()).toBe('Missing credentials');
-  });
-
-  it('calls AuthService.login when email and password are provided', () => {
-    component.email.set('user@example.com');
-    component.password.set('password123');
-
-    authService.login.mockReturnValue(
-      of({ accessToken: 'access', refreshToken: 'refresh' } as any),
-    );
-
-    component.submit(new Event('submit'));
-
-    expect(authService.login).toHaveBeenCalledWith({
-      emailOrUsername: 'user@example.com',
-      password: 'password123',
-    });
-  });
-
-  it('clears email and password on successful login, keeps error empty and navigates to /client', () => {
-    component.email.set('user@example.com');
-    component.password.set('password123');
-
-    authService.login.mockReturnValue(
-      of({ accessToken: 'access', refreshToken: 'refresh' } as any),
-    );
-
-    component.submit(new Event('submit'));
-
+  it('should have empty initial signals', () => {
     expect(component.email()).toBe('');
     expect(component.password()).toBe('');
     expect(component.error()).toBe('');
-    expect(router.navigateByUrl).toHaveBeenCalledWith('/client');
   });
 
-  it('sets error signal when login fails', () => {
-    component.email.set('user@example.com');
-    component.password.set('password123');
+  it('onEmailInput should update email signal', () => {
+    const event = {
+      target: { value: 'test@example.com' },
+    } as unknown as Event;
 
-    const httpError = {
-      error: { message: 'Invalid credentials' },
-    };
-
-    authService.login.mockReturnValue(throwError(() => httpError));
-
-    component.submit(new Event('submit'));
-
-    expect(component.error()).toBe('Invalid credentials');
-  });
-
-  it('falls back to default error message when login fails without message', () => {
-    component.email.set('user@example.com');
-    component.password.set('password123');
-
-    authService.login.mockReturnValue(throwError(() => ({})));
-
-    component.submit(new Event('submit'));
-
-    expect(component.error()).toBe('Login failed');
-  });
-
-  it('updates email signal on valid input', () => {
-    const inputEvent = new Event('input');
-    const inputElement = document.createElement('input');
-    inputElement.value = 'test@example.com';
-    Object.defineProperty(inputEvent, 'target', { value: inputElement });
-
-    component.onEmailInput(inputEvent);
+    component.onEmailInput(event);
 
     expect(component.email()).toBe('test@example.com');
   });
 
-  it('updates password signal on valid input', () => {
-    const inputEvent = new Event('input');
-    const inputElement = document.createElement('input');
-    inputElement.value = 'securepassword';
-    Object.defineProperty(inputEvent, 'target', { value: inputElement });
+  it('onEmailInput should ignore event without target', () => {
+    const event = { target: null } as unknown as Event;
 
-    component.onPasswordInput(inputEvent);
-
-    expect(component.password()).toBe('securepassword');
-  });
-
-  it('does not update email signal if input event has no target', () => {
-    const inputEvent = new Event('input');
-
-    component.onEmailInput(inputEvent);
+    component.onEmailInput(event);
 
     expect(component.email()).toBe('');
   });
 
-  it('does not update password signal if input event has no target', () => {
-    const inputEvent = new Event('input');
+  it('onPasswordInput should update password signal', () => {
+    const event = {
+      target: { value: 'superSecret' },
+    } as unknown as Event;
 
-    component.onPasswordInput(inputEvent);
+    component.onPasswordInput(event);
+
+    expect(component.password()).toBe('superSecret');
+  });
+
+  it('onPasswordInput should ignore event without target', () => {
+    const event = { target: null } as unknown as Event;
+
+    component.onPasswordInput(event);
 
     expect(component.password()).toBe('');
+  });
+
+  it('submit should set error when credentials are missing and not call authService', () => {
+    const preventDefault = jest.fn();
+    const event = { preventDefault } as unknown as Event;
+
+    component.submit(event);
+
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(component.error()).toBe('Missing credentials');
+    expect(authServiceMock.login).not.toHaveBeenCalled();
+    expect(userServiceMock.loadCurrentUser).not.toHaveBeenCalled();
+    expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
+  });
+
+  it('submit should call authService.login with correct payload on valid credentials', () => {
+    const preventDefault = jest.fn();
+    const event = { preventDefault } as unknown as Event;
+
+    component.email.set('test@example.com');
+    component.password.set('secret');
+
+    authServiceMock.login.mockReturnValue(of({ accessToken: 'abc' }));
+
+    component.submit(event);
+
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(authServiceMock.login).toHaveBeenCalledTimes(1);
+    expect(authServiceMock.login).toHaveBeenCalledWith({
+      emailOrUsername: 'test@example.com',
+      password: 'secret',
+    });
+  });
+
+  it('submit success flow should clear credentials, load user and navigate', () => {
+    const preventDefault = jest.fn();
+    const event = { preventDefault } as unknown as Event;
+
+    component.email.set('test@example.com');
+    component.password.set('secret');
+
+    authServiceMock.login.mockReturnValue(of({ accessToken: 'abc' }));
+
+    component.submit(event);
+
+    expect(component.email()).toBe('');
+    expect(component.password()).toBe('');
+    expect(component.error()).toBe('');
+
+    // User laden
+    expect(userServiceMock.loadCurrentUser).toHaveBeenCalledTimes(1);
+
+    // Navigation
+    expect(routerMock.navigateByUrl).toHaveBeenCalledTimes(1);
+    expect(routerMock.navigateByUrl).toHaveBeenCalledWith('/client');
+  });
+
+  it('submit error flow should set error from backend if available', () => {
+    const preventDefault = jest.fn();
+    const event = { preventDefault } as unknown as Event;
+
+    component.email.set('test@example.com');
+    component.password.set('secret');
+
+    authServiceMock.login.mockReturnValue(
+      throwError(() => ({ error: { message: 'Invalid credentials' } })),
+    );
+
+    component.submit(event);
+
+    expect(component.error()).toBe('Invalid credentials');
+    expect(userServiceMock.loadCurrentUser).not.toHaveBeenCalled();
+    expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
+  });
+
+  it('submit error flow should fallback to "Login failed" when error message missing', () => {
+    const preventDefault = jest.fn();
+    const event = { preventDefault } as unknown as Event;
+
+    component.email.set('test@example.com');
+    component.password.set('secret');
+
+    authServiceMock.login.mockReturnValue(
+      throwError(() => ({})),
+    );
+
+    component.submit(event);
+
+    expect(component.error()).toBe('Login failed');
+    expect(userServiceMock.loadCurrentUser).not.toHaveBeenCalled();
+    expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
   });
 });

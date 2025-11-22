@@ -7,9 +7,14 @@
   "paths": {
     "/api/user/me": {
       "get": {
-        "tags": ["User"],
+        "tags": ["UserInternal"],
         "summary": "Get current user settings",
         "operationId": "getCurrentUser",
+        "security": [
+          {
+            "AccessTokenAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -24,9 +29,14 @@
         }
       },
       "put": {
-        "tags": ["User"],
+        "tags": ["UserInternal"],
         "summary": "Update current user settings",
         "operationId": "updateCurrentUser",
+        "security": [
+          {
+            "AccessTokenAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -53,11 +63,26 @@
     }
   },
   "components": {
+    "securitySchemes": {
+      "AccessTokenAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
     "schemas": {
       "UserSettingsRequest": {
         "type": "object",
-        "required": ["firstName", "lastName"],
         "properties": {
+          "username": {
+            "type": "string",
+            "example": "Dev"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "dev@gmail.com"
+          },
           "firstName": {
             "type": "string",
             "example": "Dev"
@@ -65,6 +90,27 @@
           "lastName": {
             "type": "string",
             "example": "User"
+          },
+          "profile": {
+            "type": "object",
+            "properties": {
+              "displayName": {
+                "type": "string",
+                "example": "Dev User"
+              },
+              "avatarUrl": {
+                "type": "string",
+                "example": "https://example.com/avatar.png"
+              },
+              "bannerUrl": {
+                "type": "string",
+                "example": "https://example.com/banner.png"
+              },
+              "accentColor": {
+                "type": "string",
+                "example": "#000000"
+              }
+            }
           }
         }
       },
@@ -99,6 +145,23 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "profile": {
+            "type": "object",
+            "properties": {
+              "displayName": {
+                "type": "string"
+              },
+              "avatarUrl": {
+                "type": "string"
+              },
+              "bannerUrl": {
+                "type": "string"
+              },
+              "accentColor": {
+                "type": "string"
+              }
+            }
           }
         }
       }

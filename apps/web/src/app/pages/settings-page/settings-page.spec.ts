@@ -1,73 +1,129 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
+import { NO_ERRORS_SCHEMA } from '@angular/core';
+import { of, throwError } from 'rxjs';
 import { Location } from '@angular/common';
+
 import { SettingsPage } from './settings-page';
+import { UserSettingsService } from '../../services/user-settings.service';
 import { SettingsPageType } from '../../types/settings-page-types';
 
 describe('SettingsPage', () => {
   let component: SettingsPage;
-  let fixture: ComponentFixture<SettingsPage>;
-  let locationMock: { back: jest.Mock };
+
+  const settingsStateMock = {
+    initFromCurrentUser: jest.fn(),
+    hasUnsavedChanges: jest.fn().mockReturnValue(false),
+    save: jest.fn(),
+    reset: jest.fn(),
+  };
+
+  const locationMock = {
+    back: jest.fn(),
+  };
 
   beforeEach(async () => {
-    locationMock = {
-      back: jest.fn(),
-    };
-
     await TestBed.configureTestingModule({
       imports: [SettingsPage],
       providers: [
+        { provide: UserSettingsService, useValue: settingsStateMock },
         { provide: Location, useValue: locationMock },
       ],
+      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(SettingsPage);
+    jest.clearAllMocks();
+    (settingsStateMock.hasUnsavedChanges as jest.Mock).mockReturnValue(false);
+
+    const fixture = TestBed.createComponent(SettingsPage);
     component = fixture.componentInstance;
-    fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it('should create and call initFromCurrentUser in constructor', () => {
     expect(component).toBeTruthy();
+    expect(settingsStateMock.initFromCurrentUser).toHaveBeenCalledTimes(1);
   });
 
-  it('should initialize with Account page open', () => {
+  it('should have Account as default openPage', () => {
     expect(component.openPage()).toBe(SettingsPageType.Account);
-  });
-
-  it('should have both pages configured', () => {
-    expect(component.pages.length).toBe(2);
-    expect(component.pages).toEqual([
-      { type: SettingsPageType.Account, label: 'My Account' },
-      { type: SettingsPageType.Security, label: 'Privacy & Security' },
-    ]);
-  });
-
-  it('should change page when setPage is called', () => {
-    component.setPage(SettingsPageType.Security);
-    expect(component.openPage()).toBe(SettingsPageType.Security);
-
-    component.setPage(SettingsPageType.Account);
-    expect(component.openPage()).toBe(SettingsPageType.Account);
-  });
-
-  it('should return correct currentPageLabel for Account', () => {
-    component.setPage(SettingsPageType.Account);
     expect(component.currentPageLabel()).toBe('My Account');
   });
 
-  it('should return correct currentPageLabel for Security', () => {
+  it('setPage should update openPage signal', () => {
     component.setPage(SettingsPageType.Security);
+
+    expect(component.openPage()).toBe(SettingsPageType.Security);
     expect(component.currentPageLabel()).toBe('Privacy & Security');
   });
 
-  it('should return empty string if page label is not found', () => {
-    // @ts-expect-error: force an invalid value into the signal for testing
-    component.openPage.set(999);
+  it('goBack should not navigate when there are unsaved changes', () => {
+    (settingsStateMock.hasUnsavedChanges as jest.Mock).mockReturnValue(true);
 
-    expect(component.currentPageLabel()).toBe('');
+    component.goBack();
+
+    expect(settingsStateMock.hasUnsavedChanges).toHaveBeenCalledTimes(1);
+    expect(locationMock.back).not.toHaveBeenCalled();
   });
 
-  it('should call Location.back when goBack is invoked', () => {
+  it('goBack should navigate back when there are no unsaved changes', () => {
+    (settingsStateMock.hasUnsavedChanges as jest.Mock).mockReturnValue(false);
+
     component.goBack();
+
+    expect(settingsStateMock.hasUnsavedChanges).toHaveBeenCalledTimes(1);
     expect(locationMock.back).toHaveBeenCalledTimes(1);
+  });
+
+  it('onSave should call settingsState.save and subscribe (success path)', () => {
+    (settingsStateMock.save as jest.Mock).mockReturnValue(of({}));
+
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    component.onSave();
+
+    expect(settingsStateMock.save).toHaveBeenCalledTimes(1);
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('onSave should log error when save observable errors', () => {
+    const error = new Error('save failed');
+    (settingsStateMock.save as jest.Mock).mockReturnValue(
+      throwError(() => error),
+    );
+
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    component.onSave();
+
+    expect(settingsStateMock.save).toHaveBeenCalledTimes(1);
+    expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+    expect(consoleErrorSpy.mock.calls[0][0]).toBe('Failed to save settings');
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('onRevoke should call settingsState.reset', () => {
+    component.onRevoke();
+
+    expect(settingsStateMock.reset).toHaveBeenCalledTimes(1);
+  });
+
+  it('hasUnsavedChanges should delegate to settingsState.hasUnsavedChanges', () => {
+    (settingsStateMock.hasUnsavedChanges as jest.Mock).mockReturnValue(true);
+
+    const result = component.hasUnsavedChanges();
+
+    expect(settingsStateMock.hasUnsavedChanges).toHaveBeenCalledTimes(1);
+    expect(result).toBe(true);
+  });
+
+  it('currentPageLabel should return empty string for unknown page type', () => {
+    // @ts-ignore
+    component.openPage.set(999);
+
+    const label = component.currentPageLabel();
+
+    expect(label).toBe('');
   });
 });

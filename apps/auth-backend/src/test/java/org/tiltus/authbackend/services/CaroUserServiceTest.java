@@ -9,7 +9,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import org.tiltus.authbackend.model.CaroUser;
+import org.tiltus.authbackend.model.CaroUserProfile;
 import org.tiltus.authbackend.repositories.CaroUserRepository;
+import org.tiltus.authbackend.rest.requests.UserProfileRequest;
 import org.tiltus.authbackend.rest.requests.UserSettingsRequest;
 
 import java.time.Instant;
@@ -42,7 +44,27 @@ class CaroUserServiceTest {
         existingUser.setLastName("OldLast");
         existingUser.setUpdatedAt(Instant.parse("2024-01-01T00:00:00Z"));
 
-        UserSettingsRequest request = new UserSettingsRequest("NewFirst", "NewLast");
+        CaroUserProfile profile = new CaroUserProfile();
+        profile.setDisplayName("Old Display");
+        profile.setAvatarUrl("old-avatar");
+        profile.setBannerUrl("old-banner");
+        profile.setAccentColor("#000000");
+        existingUser.setProfile(profile);
+
+        UserProfileRequest profileRequest = new UserProfileRequest(
+                "New Display",
+                "new-avatar",
+                "new-banner",
+                "#ffffff"
+        );
+
+        UserSettingsRequest request = new UserSettingsRequest(
+                null,
+                null,
+                "NewFirst",
+                "NewLast",
+                profileRequest
+        );
 
         when(userRepository.findById(uuid)).thenReturn(Optional.of(existingUser));
         when(userRepository.save(any(CaroUser.class)))
@@ -61,10 +83,15 @@ class CaroUserServiceTest {
         assertThat(savedUser.getId()).isEqualTo(uuid);
         assertThat(savedUser.getFirstName()).isEqualTo("NewFirst");
         assertThat(savedUser.getLastName()).isEqualTo("NewLast");
+        assertThat(savedUser.getUpdatedAt()).isNotNull().isAfter(beforeCall);
 
-        assertThat(savedUser.getUpdatedAt())
-                .isNotNull()
-                .isAfter(beforeCall);
+        assertThat(savedUser.getProfile()).isNotNull();
+        assertThat(savedUser.getProfile().getUser()).isSameAs(savedUser);
+        assertThat(savedUser.getProfile().getDisplayName()).isEqualTo("New Display");
+        assertThat(savedUser.getProfile().getAvatarUrl()).isEqualTo("new-avatar");
+        assertThat(savedUser.getProfile().getBannerUrl()).isEqualTo("new-banner");
+        assertThat(savedUser.getProfile().getAccentColor()).isEqualTo("#ffffff");
+
         assertThat(result).isSameAs(savedUser);
     }
 
@@ -74,7 +101,7 @@ class CaroUserServiceTest {
         String userId = UUID.randomUUID().toString();
         UUID uuid = UUID.fromString(userId);
 
-        UserSettingsRequest request = new UserSettingsRequest("NewFirst", "NewLast");
+        UserSettingsRequest request = new UserSettingsRequest(null, null, "NewFirst", "NewLast", null);
 
         when(userRepository.findById(uuid)).thenReturn(Optional.empty());
 

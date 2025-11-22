@@ -1,5 +1,6 @@
 package org.tiltus.authbackend.security;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -41,11 +42,15 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(
                                 "/actuator/health",
-                                "/actuator/health/**",
-                                "/api/user/**"
-                        )
-                        .permitAll()
+                                "/actuator/health/**"
+                        ).permitAll()
                         .anyRequest().authenticated()
+                )
+                .exceptionHandling(ex -> ex
+                                // Unauthenticated → 401
+                                .authenticationEntryPoint((request, response, authException) -> {
+                                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+                                })
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

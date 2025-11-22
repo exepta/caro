@@ -7,8 +7,9 @@ import {
 import { provideRouter } from '@angular/router';
 
 import { routes } from './app.routes';
-import {provideHttpClient, withInterceptorsFromDi} from '@angular/common/http';
+import {HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi} from '@angular/common/http';
 import {ApiModule, Configuration} from './api';
+import {AccessTokenInterceptor} from './interceptors/access-token.interceptor-interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -16,6 +17,7 @@ export const appConfig: ApplicationConfig = {
     provideZonelessChangeDetection(),
     provideRouter(routes),
     provideHttpClient(withInterceptorsFromDi()),
+    { provide: HTTP_INTERCEPTORS, useClass: AccessTokenInterceptor, multi: true },
     importProvidersFrom(
       ApiModule.forRoot(() => new Configuration({basePath: 'http://localhost:8080'}))
     )

@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, computed, effect, inject } from '@angular/core';
 import { ColorPicker } from '../../../../controls/color-picker/color-picker';
+import {UserSettingsService} from '../../../../services/user-settings.service';
 
 interface AccountEditControl {
   key: string;
@@ -21,61 +22,78 @@ interface AccountEditControl {
   ],
 })
 export class SettingsAccountModule {
-  selectedColor = '#3a7bd5';
+  private readonly settingsState = inject(UserSettingsService);
+
+  // Draft aus dem State-Service
+  readonly draft = this.settingsState.draft;
+
+  selectedColor = '#000000';
   isPickerOpen = false;
 
-  acc_edits: AccountEditControl[] = [
-    {
-      key: 'displayName',
-      label: 'Display Name',
-      value: 'Exepta',
-      description: 'This is the public name other users will see.',
-    },
-    {
-      key: 'username',
-      label: 'Username',
-      value: 'dev',
-      description: 'Your username is used to log in or identify you.',
-    },
-    {
-      key: 'email',
-      label: 'Email',
-      value: 'dev@caro.de',
-      description:
-        'Your email is used to log in or identify you. It can be used for contact or billing.',
-    },
-    {
-      key: 'mobil',
-      label: 'Mobile',
-      value: '+49 123 4567890',
-      description:
-        'Your mobile number can be used for two-factor authentication or contact.',
-    },
-  ];
+  readonly acc_edits = computed<AccountEditControl[]>(() => {
+    const user = this.draft();
+    if (!user) {
+      return [];
+    }
+
+    return [
+      {
+        key: 'displayName',
+        label: 'Display Name',
+        value: user.profile?.displayName ?? '',
+        description: 'This is the public name other users will see.',
+      },
+      {
+        key: 'username',
+        label: 'Username',
+        value: user.username ?? '',
+        description: 'Your username is used to log in or identify you.',
+      },
+      {
+        key: 'email',
+        label: 'Email',
+        value: user.email ?? '',
+        description:
+          'Your email is used to log in or identify you. It can be used for contact or billing.',
+      },
+      {
+        key: 'mobil',
+        label: 'Mobile',
+        value: '',
+        description:
+          'Your mobile number can be used for two-factor authentication or contact.',
+      },
+    ];
+  });
 
   colors = [
-    '#3a7bd5', // modern blue
-    '#6c5ce7', // violet
-    '#ff7675', // soft red
-    '#00cec9', // cyan teal
-    '#fab1a0', // peach
-    '#fdcb6e', // amber
-    '#a29bfe', // soft purple
-    '#55efc4', // mint
-    '#ffeaa7', // light yellow
-    '#00b894', // strong teal
-    '#0984e3', // pure blue
-    '#d63031', // strong red
-    '#e84393', // hot pink
-    '#fd79a8', // pastel pink
-    '#ff6b81', // coral pink
-    '#1e90ff', // deep sky blue
-    '#e17055', // orange copper
-    '#74b9ff', // baby blue
+    '#3a7bd5', '#6c5ce7', '#ff7675', '#00cec9', '#fab1a0',
+    '#fdcb6e', '#a29bfe', '#55efc4', '#ffeaa7', '#00b894',
+    '#0984e3', '#d63031', '#e84393', '#fd79a8', '#ff6b81',
+    '#1e90ff', '#e17055', '#74b9ff',
   ];
+
+  constructor() {
+    effect(() => {
+      const user = this.draft();
+      if (user?.profile?.accentColor) {
+        this.selectedColor = user.profile.accentColor;
+      }
+
+      this.avatarImageSrc = user?.profile?.avatarUrl ?? null;
+      this.bannerImageSrc = user?.profile?.bannerUrl ?? null;
+      this.selectedColor = user?.profile?.accentColor ?? '#3a7bd5';
+    });
+  }
 
   selectAccentColor(color: string) {
     this.selectedColor = color;
+    this.settingsState.patchProfile({ accentColor: color });
+  }
+
+  onAccentColorChange(color: string) {
+    this.selectedColor = color;
+    this.settingsState.patchProfile({ accentColor: color });
   }
 
   // Accent Color Picker
@@ -111,20 +129,41 @@ export class SettingsAccountModule {
 
   saveEdit() {
     if (!this.activeControl) return;
-    this.activeControl.value = this.editValue;
-    // TODO: Backend-Update hier
+
+    const key = this.activeControl.key;
+    const value = this.editValue.trim();
+
+    switch (key) {
+      case 'displayName':
+        this.settingsState.patchProfile({ displayName: value });
+        break;
+      case 'username':
+        this.settingsState.patchDraft({ username: value });
+        break;
+      case 'email':
+        this.settingsState.patchDraft({ email: value });
+        break;
+      case 'mobil':
+        console.log('Not supported yet');
+        break;
+      default:
+        break;
+    }
+
     this.closeEdit();
   }
 
   avatarImageSrc: string | null = null;
   bannerImageSrc: string | null = null;
 
-  // Avatar-Modal
   isAvatarModalOpen = false;
   avatarTempSrc: string | null = null;
   avatarUrlInput = '';
 
   openAvatarModal() {
+    const user = this.draft();
+    this.avatarImageSrc = user?.profile?.avatarUrl ?? null;
+
     this.isAvatarModalOpen = true;
     this.avatarTempSrc = this.avatarImageSrc;
     this.avatarUrlInput = this.avatarImageSrc ?? '';
@@ -156,11 +195,13 @@ export class SettingsAccountModule {
 
   saveAvatar() {
     this.avatarImageSrc = this.avatarTempSrc;
+    this.settingsState.patchProfile({ avatarUrl: this.avatarImageSrc ?? '' });
     this.closeAvatarModal();
   }
 
   removeAvatar() {
     this.avatarImageSrc = null;
+    this.settingsState.patchProfile({ avatarUrl: '' });
   }
 
   // Banner-Modal
@@ -169,6 +210,9 @@ export class SettingsAccountModule {
   bannerUrlInput = '';
 
   openBannerModal() {
+    const user = this.draft();
+    this.bannerImageSrc = user?.profile?.bannerUrl ?? null;
+
     this.isBannerModalOpen = true;
     this.bannerTempSrc = this.bannerImageSrc;
     this.bannerUrlInput = this.bannerImageSrc ?? '';
@@ -200,19 +244,22 @@ export class SettingsAccountModule {
 
   saveBanner() {
     this.bannerImageSrc = this.bannerTempSrc;
+    this.settingsState.patchDraft({ profile: { bannerUrl: this.bannerImageSrc ?? '' } });
     this.closeBannerModal();
   }
 
   removeBanner() {
     this.bannerImageSrc = null;
+    this.settingsState.patchDraft({ profile: { bannerUrl: '' } });
   }
 
-
   protected get displayName(): string {
-    return (
-      this.acc_edits.find((c) => c.key === 'displayName')?.value?.trim() ||
-      'User'
-    );
+    const user = this.draft();
+    const name =
+      user?.profile?.displayName ??
+      this.acc_edits().find((c) => c.key === 'displayName')?.value ??
+      '';
+    return name.trim() || 'User';
   }
 
   get displayInitial(): string {

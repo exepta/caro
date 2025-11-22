@@ -1,3 +1,4 @@
+@if (draft()) {
 <div class="user-modal-set">
   <div
     class="banner-box"
@@ -38,7 +39,7 @@
 
   <div class="controls-container">
     <div class="controls">
-      @for (control of acc_edits; track control) {
+      @for (control of acc_edits(); track control.key) {
         <div class="control">
           <div class="current-value">
             <h4>{{ control.label }}</h4>
@@ -91,7 +92,7 @@
         </header>
 
         <section class="modal-body">
-          <app-color-picker [(color)]="selectedColor"></app-color-picker>
+          <app-color-picker [(color)]="selectedColor" (colorChange)="onAccentColorChange($event)"></app-color-picker>
           <div class="color-palette">
             @for (color of colors; track color) {
               <div class="color-pick" [style.background]="color" (click)="selectAccentColor(color)"></div>
@@ -181,7 +182,7 @@
                 type="text"
                 class="normal-input-field"
                 placeholder="https://example.com/image.png"
-                [value]="avatarUrlInput"
+                [value]="avatarUrlInput.startsWith('data:') ? '' : avatarUrlInput"
                 (input)="avatarUrlInput = ($any($event.target).value)"
               />
               <button
@@ -246,7 +247,7 @@
                 type="text"
                 class="normal-input-field"
                 placeholder="https://example.com/image.png"
-                [value]="bannerUrlInput"
+                [value]="bannerUrlInput.startsWith('data:') ? '' : bannerUrlInput"
                 (input)="bannerUrlInput = ($any($event.target).value)"
               />
               <button
@@ -272,3 +273,4 @@
     </div>
   </div>
 }
+} @else { <p>Loading...</p> }

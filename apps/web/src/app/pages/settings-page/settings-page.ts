@@ -1,10 +1,11 @@
-import {Component, inject, signal} from '@angular/core';
-import {Location} from '@angular/common';
-import {SettingsPageType} from '../../types/settings-page-types';
-import {SettingsAccountModule} from './module/settings-account-module/settings-account-module';
+import { Component, inject, signal } from '@angular/core';
+import { Location } from '@angular/common';
+import { SettingsPageType } from '../../types/settings-page-types';
+import { SettingsAccountModule } from './module/settings-account-module/settings-account-module';
 import {
   SettingsPrivacyAndSecurityModule
 } from './module/settings-privacy-and-security-module/settings-privacy-and-security-module';
+import { UserSettingsService } from '../../services/user-settings.service';
 
 @Component({
   selector: 'app-settings-page',
@@ -17,6 +18,7 @@ import {
 })
 export class SettingsPage {
   private readonly location = inject(Location);
+  private readonly settingsState = inject(UserSettingsService);
 
   openPage = signal<SettingsPageType>(SettingsPageType.Account);
 
@@ -29,12 +31,33 @@ export class SettingsPage {
     this.pages.map(p => [p.type, p.label])
   );
 
+  constructor() {
+    this.settingsState.initFromCurrentUser();
+  }
+
   setPage(page: SettingsPageType): void {
     this.openPage.set(page);
   }
 
-  goBack() {
+  goBack(): void {
+    if (this.settingsState.hasUnsavedChanges()) {
+      return;
+    }
     this.location.back();
+  }
+
+  onSave(): void {
+    this.settingsState.save().subscribe({
+      error: (err) => console.error('Failed to save settings', err),
+    });
+  }
+
+  onRevoke(): void {
+    this.settingsState.reset();
+  }
+
+  hasUnsavedChanges(): boolean {
+    return this.settingsState.hasUnsavedChanges();
   }
 
   currentPageLabel(): string {

@@ -1,6 +1,7 @@
 import {Component, inject, signal} from '@angular/core';
 import {AuthService} from '../../../services/auth.service';
 import {Router} from '@angular/router';
+import {UserService} from '../../../services/user.service';
 
 @Component({
   selector: 'app-login-module',
@@ -14,6 +15,7 @@ export class LoginModule {
   error = signal('');
 
   private authService: AuthService = inject(AuthService);
+  private readonly userService = inject(UserService);
   private router = inject(Router);
 
   submit(e: Event) {
@@ -30,6 +32,8 @@ export class LoginModule {
           console.log('Login success:', response);
           this.email.set('');
           this.password.set('');
+
+          this.userService.loadCurrentUser();
 
           void this.router.navigateByUrl('/client');
         },
