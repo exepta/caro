@@ -19,8 +19,14 @@
   padding: 0.95rem 1.25rem;
   border-radius: 8px;
   border: 1px solid #444;
-  background: #111;
+  outline: none;
+  background: #363742;
   color: #fff;
+  transition: .2s all;
+
+  &:hover, &:focus {
+    border-color: #5c3ad4;
+  }
 }
 
 .auth-form input::placeholder {

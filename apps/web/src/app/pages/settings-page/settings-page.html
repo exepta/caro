@@ -1,0 +1,60 @@
+<div class="page-container justify-center">
+  <div class="content-container">
+    <div class="left-container-side">
+      <div class="inner-container">
+        <h3 class="headline-uppercase">User Settings</h3>
+
+        @for (p of pages; track p.type) {
+          <button
+            class="set-link"
+            [class.active]="openPage() === p.type"
+            (click)="setPage(p.type)"
+          >
+            {{ p.label }}
+          </button>
+        }
+
+      </div>
+    </div>
+
+    <div class="right-container-side">
+      <h1 class="headline">{{ currentPageLabel() }}</h1>
+      <div class="main-content">
+        @switch (openPage()) {
+          @case (SettingsPageType.Account) {
+            <app-settings-account-module />
+          }
+          @case (SettingsPageType.Security) {
+            <app-settings-privacy-and-security-module />
+          }
+          @default {
+            <p>Page not found</p>
+          }
+        }
+
+        @if (hasUnsavedChanges()) {
+          <div class="unsaved-changes-bar">
+            <span>There was changes detected! Save before leave.</span>
+
+            <div class="unsaved-actions">
+              <button type="button" class="btn-secondary" (click)="onRevoke()">
+                Revoke
+              </button>
+
+              <button type="button" class="btn-primary" (click)="onSave()">
+                Save
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<button
+  class="close"
+  (click)="goBack()"
+>
+  X
+</button>

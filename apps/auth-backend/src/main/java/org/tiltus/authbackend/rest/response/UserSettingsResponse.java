@@ -13,7 +13,8 @@ public record UserSettingsResponse(
         String firstName,
         String lastName,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        UserProfileResponse profile
 ) {
 
     public static UserSettingsResponse from(CaroUser user) {
@@ -25,7 +26,8 @@ public record UserSettingsResponse(
                 user.getFirstName(),
                 user.getLastName(),
                 user.getCreatedAt(),
-                user.getUpdatedAt()
+                user.getUpdatedAt(),
+                UserProfileResponse.from(user.getProfile())
         );
     }
 

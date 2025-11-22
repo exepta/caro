@@ -1,0 +1,43 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Caro Backend Voice API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/auth/register": {
+      "$ref": "./api-auth.json#/paths/~1api~1auth~1register"
+    },
+    "/api/auth/login": {
+      "$ref": "./api-auth.json#/paths/~1api~1auth~1login"
+    },
+    "/api/auth/refresh": {
+      "$ref": "./api-auth.json#/paths/~1api~1auth~1refresh"
+    },
+    "/api/user/me": {
+      "$ref": "./api-user.json#/paths/~1api~1user~1me"
+    }
+  },
+  "components": {
+    "schemas": {
+      "RegisterRequest": {
+        "$ref": "./api-auth.json#/components/schemas/RegisterRequest"
+      },
+      "LoginRequest": {
+        "$ref": "./api-auth.json#/components/schemas/LoginRequest"
+      },
+      "RefreshTokenRequest": {
+        "$ref": "./api-auth.json#/components/schemas/RefreshTokenRequest"
+      },
+      "TokenResponse": {
+        "$ref": "./api-auth.json#/components/schemas/TokenResponse"
+      },
+      "UserSettingsRequest": {
+        "$ref": "./api-user.json#/components/schemas/UserSettingsRequest"
+      },
+      "UserSettingsResponse": {
+        "$ref": "./api-user.json#/components/schemas/UserSettingsResponse"
+      }
+    }
+  }
+}

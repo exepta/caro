@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Caro Backend Voice API",
+    "title": "Caro Backend Voice API - Auth",
     "version": "1.0.0"
   },
   "paths": {
@@ -24,11 +24,11 @@
           "200": {
             "description": "OK",
             "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/TokenResponse"
-                  }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
                 }
+              }
             }
           }
         }
@@ -53,11 +53,11 @@
           "200": {
             "description": "OK",
             "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/TokenResponse"
-                  }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
                 }
+              }
             }
           }
         }
@@ -82,11 +82,11 @@
           "200": {
             "description": "OK",
             "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/TokenResponse"
-                  }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
                 }
+              }
             }
           }
         }

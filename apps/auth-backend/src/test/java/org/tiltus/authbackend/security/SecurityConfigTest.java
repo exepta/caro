@@ -44,14 +44,16 @@ class SecurityConfigTest {
 
     @Test
     void filterChain_configuresHttpSecurityCorrectly() throws Exception {
-        org.mockito.Mockito.doReturn(httpSecurity).when(httpSecurity).csrf(org.mockito.ArgumentMatchers.any());
-        org.mockito.Mockito.doReturn(httpSecurity).when(httpSecurity).cors(org.mockito.ArgumentMatchers.any());
-        org.mockito.Mockito.doReturn(httpSecurity).when(httpSecurity).sessionManagement(org.mockito.ArgumentMatchers.any());
-        org.mockito.Mockito.doReturn(httpSecurity).when(httpSecurity).authorizeHttpRequests(org.mockito.ArgumentMatchers.any());
-        org.mockito.Mockito.doReturn(httpSecurity).when(httpSecurity).addFilterBefore(org.mockito.Mockito.any(), org.mockito.ArgumentMatchers.eq(UsernamePasswordAuthenticationFilter.class));
+        doReturn(httpSecurity).when(httpSecurity).csrf(any());
+        doReturn(httpSecurity).when(httpSecurity).cors(any());
+        doReturn(httpSecurity).when(httpSecurity).sessionManagement(any());
+        doReturn(httpSecurity).when(httpSecurity).authorizeHttpRequests(any());
+        doReturn(httpSecurity).when(httpSecurity).exceptionHandling(any()); // <-- Wichtig
+        doReturn(httpSecurity).when(httpSecurity)
+                .addFilterBefore(any(), eq(UsernamePasswordAuthenticationFilter.class));
 
         SecurityFilterChain mockChain = mock(SecurityFilterChain.class);
-        org.mockito.Mockito.doReturn(mockChain).when(httpSecurity).build();
+        doReturn(mockChain).when(httpSecurity).build();
 
         SecurityFilterChain chain = securityConfig.filterChain(httpSecurity);
 
@@ -60,6 +62,7 @@ class SecurityConfigTest {
         verify(httpSecurity).cors(any());
         verify(httpSecurity).sessionManagement(any());
         verify(httpSecurity).authorizeHttpRequests(any());
+        verify(httpSecurity).exceptionHandling(any());
         verify(httpSecurity).addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
     }
 

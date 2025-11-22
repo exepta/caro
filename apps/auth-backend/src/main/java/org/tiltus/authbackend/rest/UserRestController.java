@@ -24,10 +24,16 @@ public class UserRestController {
 
     @GetMapping("/me")
     public ResponseEntity<UserSettingsResponse> me(@AuthenticationPrincipal String userId) {
-        if (userId == null || userId.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid user id");
+        if (userId == null || userId.isEmpty() || "anonymousUser".equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
         }
-        UUID uuid = UUID.fromString(userId);
+
+        final UUID uuid;
+        try {
+            uuid = UUID.fromString(userId);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid user id");
+        }
 
         CaroUser user = userRepository.findById(uuid)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
@@ -40,10 +46,18 @@ public class UserRestController {
             @AuthenticationPrincipal String userId,
             @RequestBody UserSettingsRequest request
     ) {
-        if (userId == null || userId.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid user id");
+        if (userId == null || userId.isEmpty() || "anonymousUser".equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
         }
+
+        try {
+            UUID.fromString(userId);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid user id");
+        }
+
         CaroUser savedUser = userService.save(userId, request);
+        System.out.println("Saved user: " + savedUser.getProfile().getDisplayName());
         return ResponseEntity.ok(UserSettingsResponse.from(savedUser));
     }
 

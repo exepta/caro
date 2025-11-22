@@ -1,4 +1,6 @@
-import { Component } from '@angular/core';
+import {Component, inject} from '@angular/core';
+import {Router} from '@angular/router';
+import {AuthService} from '../../services/auth.service';
 
 @Component({
   selector: 'app-client-view-page',
@@ -7,5 +9,14 @@ import { Component } from '@angular/core';
   styleUrl: './client-view-page.scss',
 })
 export class ClientViewPage {
+  private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
 
+  openSettings() {
+    void this.router.navigateByUrl('/settings');
+  }
+
+  logout() {
+    this.authService.logout();
+  }
 }

@@ -1,0 +1,276 @@
+@if (draft()) {
+<div class="user-modal-set">
+  <div
+    class="banner-box"
+    [style.border-color]="selectedColor"
+  >
+    @if (bannerImageSrc) {
+      <img
+        [src]="bannerImageSrc"
+        class="banner-preview"
+        alt="Banner Preview"
+      />
+    }
+  </div>
+
+  <div
+    class="avatar-box"
+    [style.border-color]="selectedColor"
+  >
+    @if (avatarImageSrc) {
+      <img
+        [src]="avatarImageSrc"
+        class="avatar-preview"
+        alt="Avatar Preview"
+      />
+    } @else {
+      <div
+        class="avatar-fallback"
+        [style.background]="initialBackground"
+      >
+        {{ displayInitial }}
+      </div>
+    }
+  </div>
+
+  <div class="top-bar-header">
+    <h2 class="top-display-name">{{ displayName }}</h2>
+  </div>
+
+  <div class="controls-container">
+    <div class="controls">
+      @for (control of acc_edits(); track control.key) {
+        <div class="control">
+          <div class="current-value">
+            <h4>{{ control.label }}</h4>
+            <span class="value">{{ control.value }}</span>
+          </div>
+
+          <div class="edit-button">
+            <button class="normal-btn" (click)="openEdit(control)">
+              Edit
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</div>
+
+<div class="card-set">
+  <h5>Avatar</h5>
+  <div class="button-container">
+    <button class="primary-btn" (click)="openAvatarModal()">Upload</button>
+    <button class="normal-btn" (click)="removeAvatar()">Remove</button>
+  </div>
+</div>
+
+<div class="card-set">
+  <h5>Banner</h5>
+  <div class="button-container">
+    <button class="primary-btn" (click)="openBannerModal()">Upload</button>
+    <button class="normal-btn" (click)="removeBanner()">Remove</button>
+  </div>
+</div>
+
+<div class="card-set">
+  <h5>Accent Color</h5>
+
+    <button
+      type="button"
+      class="accent-color-btn"
+      [style.background]="selectedColor"
+      (click)="openPicker()"
+    >
+    </button>
+
+  @if (isPickerOpen) {
+    <div class="modal-backdrop" (click)="closePicker()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <header class="modal-header">
+          <h4>Select Accent Color</h4>
+        </header>
+
+        <section class="modal-body">
+          <app-color-picker [(color)]="selectedColor" (colorChange)="onAccentColorChange($event)"></app-color-picker>
+          <div class="color-palette">
+            @for (color of colors; track color) {
+              <div class="color-pick" [style.background]="color" (click)="selectAccentColor(color)"></div>
+            }
+          </div>
+
+        </section>
+
+        <footer class="modal-footer">
+          <button type="button" class="normal-btn" (click)="closePicker()">
+            Close
+          </button>
+        </footer>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Edit-Modal für acc_edits -->
+@if (isEditModalOpen && activeControl) {
+  <div class="modal-backdrop" (click)="closeEdit()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <header class="modal-header">
+        <h4>Edit {{ activeControl.label }}</h4>
+      </header>
+
+      <section class="modal-body">
+        <p class="description">
+          {{ activeControl.description }}
+        </p>
+
+        <input
+          type="text"
+          class="normal-input-field"
+          [value]="editValue"
+          (input)="onEditInput($event)"
+        />
+      </section>
+
+      <footer class="modal-footer">
+        <button type="button" class="normal-btn" (click)="closeEdit()">
+          Cancel
+        </button>
+        <button type="button" class="primary-btn" (click)="saveEdit()">
+          Apply
+        </button>
+      </footer>
+    </div>
+  </div>
+}
+
+<!-- Avatar Upload-Modal -->
+@if (isAvatarModalOpen) {
+  <div class="modal-backdrop" (click)="closeAvatarModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <header class="modal-header">
+        <h4>Upload Avatar</h4>
+      </header>
+
+      <section class="modal-body">
+        <p class="description">Choose how you want to set your avatar.</p>
+
+        <div class="upload-options">
+          <div class="upload-option">
+            <h5>Upload from PC</h5>
+
+            <label class="file-input-wrapper">
+              <span class="file-input-text">
+                {{ avatarTempSrc ? 'Replace File' : 'Choose File' }}
+              </span>
+
+              <input
+                type="file"
+                accept="image/*"
+                class="hidden-file-input"
+                (change)="onAvatarFileSelected($event)"
+              />
+            </label>
+
+          </div>
+
+          <div class="upload-option">
+            <h5>Use Web Link</h5>
+
+            <div class="btn-container">
+              <input
+                type="text"
+                class="normal-input-field"
+                placeholder="https://example.com/image.png"
+                [value]="avatarUrlInput.startsWith('data:') ? '' : avatarUrlInput"
+                (input)="avatarUrlInput = ($any($event.target).value)"
+              />
+              <button
+                type="button"
+                class="normal-btn"
+                (click)="applyAvatarUrl()"
+              >
+                Apply Link
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <footer class="modal-footer">
+        <button type="button" class="normal-btn" (click)="closeAvatarModal()">
+          Cancel
+        </button>
+        <button type="button" class="primary-btn" (click)="saveAvatar()">
+          Save
+        </button>
+      </footer>
+    </div>
+  </div>
+}
+
+<!-- Banner Upload-Modal -->
+@if (isBannerModalOpen) {
+  <div class="modal-backdrop" (click)="closeBannerModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <header class="modal-header">
+        <h4>Upload Banner</h4>
+      </header>
+
+      <section class="modal-body">
+        <p class="description">Choose how you want to set your banner.</p>
+
+        <div class="upload-options">
+          <div class="upload-option">
+            <h5>Upload from PC</h5>
+
+            <label class="file-input-wrapper">
+              <span class="file-input-text">
+                {{ bannerTempSrc ? 'Replace File' : 'Choose File' }}
+              </span>
+
+              <input
+                type="file"
+                accept="image/*"
+                class="hidden-file-input"
+                (change)="onBannerFileSelected($event)"
+              />
+            </label>
+          </div>
+
+          <div class="upload-option">
+            <h5>Use Web Link</h5>
+
+            <div class="btn-container">
+              <input
+                type="text"
+                class="normal-input-field"
+                placeholder="https://example.com/image.png"
+                [value]="bannerUrlInput.startsWith('data:') ? '' : bannerUrlInput"
+                (input)="bannerUrlInput = ($any($event.target).value)"
+              />
+              <button
+                type="button"
+                class="normal-btn"
+                (click)="applyBannerUrl()"
+              >
+                Apply Link
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="modal-footer">
+        <button type="button" class="normal-btn" (click)="closeBannerModal()">
+          Cancel
+        </button>
+        <button type="button" class="primary-btn" (click)="saveBanner()">
+          Save
+        </button>
+      </footer>
+    </div>
+  </div>
+}
+} @else { <p>Loading...</p> }

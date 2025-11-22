@@ -1,16 +1,19 @@
-<div class="auth-wrapper">
-  <h1>Caro</h1>
+<div class="full-page-container container-centered">
+  <div class="auth-wrapper">
+    <h1>Caro</h1>
 
-  @if (mode() === 'login') {
-    <app-login-module></app-login-module>
-    <div class="switcher-link">
-      <span>No account yet? <button (click)="mode.set('register')">Sign Up</button></span>
-    </div>
-  } @else {
-    <app-register-module></app-register-module>
-    <div class="switcher-link">
-      <span>Already have a account? <button (click)="mode.set('login')">Sign In</button></span>
-    </div>
-  }
+    @if (mode() === 'login') {
+      <app-login-module></app-login-module>
+      <div class="switcher-link">
+        <span>No account yet? <button (click)="mode.set('register')">Sign Up</button></span>
+      </div>
+    } @else {
+      <app-register-module></app-register-module>
+      <div class="switcher-link">
+        <span>Already have a account? <button (click)="mode.set('login')">Sign In</button></span>
+      </div>
+    }
 
+  </div>
 </div>
+

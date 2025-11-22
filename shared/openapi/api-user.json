@@ -1,0 +1,170 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Caro Backend Voice API - User",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/user/me": {
+      "get": {
+        "tags": ["UserInternal"],
+        "summary": "Get current user settings",
+        "operationId": "getCurrentUser",
+        "security": [
+          {
+            "AccessTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["UserInternal"],
+        "summary": "Update current user settings",
+        "operationId": "updateCurrentUser",
+        "security": [
+          {
+            "AccessTokenAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserSettingsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "AccessTokenAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "UserSettingsRequest": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "Dev"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "dev@gmail.com"
+          },
+          "firstName": {
+            "type": "string",
+            "example": "Dev"
+          },
+          "lastName": {
+            "type": "string",
+            "example": "User"
+          },
+          "profile": {
+            "type": "object",
+            "properties": {
+              "displayName": {
+                "type": "string",
+                "example": "Dev User"
+              },
+              "avatarUrl": {
+                "type": "string",
+                "example": "https://example.com/avatar.png"
+              },
+              "bannerUrl": {
+                "type": "string",
+                "example": "https://example.com/banner.png"
+              },
+              "accentColor": {
+                "type": "string",
+                "example": "#000000"
+              }
+            }
+          }
+        }
+      },
+      "UserSettingsResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "tagId": {
+            "type": "string",
+            "example": "#012345"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "profile": {
+            "type": "object",
+            "properties": {
+              "displayName": {
+                "type": "string"
+              },
+              "avatarUrl": {
+                "type": "string"
+              },
+              "bannerUrl": {
+                "type": "string"
+              },
+              "accentColor": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
