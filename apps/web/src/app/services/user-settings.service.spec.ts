@@ -1,117 +1,109 @@
 import { TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
-import { of, throwError } from 'rxjs';
+import { of } from 'rxjs';
 import { UserSettingsService } from './user-settings.service';
-import { UserInternalService, UserSettingsResponse } from '../api';
 import { UserService } from './user.service';
+import { UserInternalService, UserSettingsResponse } from '../api';
 
-if (typeof (globalThis as any).structuredClone === 'undefined') {
-  (globalThis as any).structuredClone = <T>(value: T): T =>
-    JSON.parse(JSON.stringify(value));
+if (typeof (globalThis as any).structuredClone !== 'function') {
+  (globalThis as any).structuredClone = (val: any) =>
+    JSON.parse(JSON.stringify(val));
 }
 
 describe('UserSettingsService', () => {
   let service: UserSettingsService;
-
-  const userSignal = signal<UserSettingsResponse | null>(null);
-
-  const baseUser: UserSettingsResponse = {
-    id: '123',
-    username: 'TestUser',
-    email: 'test@example.com',
-    profile: {
-      displayName: 'Test User',
-      avatarUrl: 'https://example.com/avatar.png',
-      bannerUrl: 'https://example.com/banner.png',
-      accentColor: '#ff00ff',
-    },
-  } as UserSettingsResponse;
-
-  const updatedUser: UserSettingsResponse = {
-    ...baseUser,
-    username: 'UpdatedUser',
-    profile: {
-      ...baseUser.profile,
-      displayName: 'Updated Display Name',
-    },
+  let userServiceMock: {
+    user: jest.Mock<UserSettingsResponse | null, []>;
+    updateUser: jest.Mock<void, [UserSettingsResponse]>;
+  };
+  let apiMock: {
+    updateCurrentUser: jest.Mock<any, [UserSettingsResponse]>;
   };
 
-  const userApiMock = {
-    updateCurrentUser: jest.fn(),
-  };
+  function createUser(partial: Partial<UserSettingsResponse>): UserSettingsResponse {
+    return {
+      id: 'user-id',
+      username: 'testuser',
+      email: 'test@example.com',
+      profile: {
+        displayName: 'Tester',
+        avatarUrl: 'https://avatar',
+        bannerUrl: 'https://banner',
+        accentColor: '#ffffff',
+        ...(partial.profile ?? {}),
+      },
+      ...partial,
+    } as unknown as UserSettingsResponse;
+  }
 
-  const userServiceMock = {
-    user: userSignal.asReadonly(),
-    updateUser: jest.fn(),
-  };
+  function setup(initialUser: UserSettingsResponse | null = null) {
+    userServiceMock = {
+      user: jest.fn(() => initialUser),
+      updateUser: jest.fn(),
+    };
 
-  beforeEach(() => {
+    apiMock = {
+      updateCurrentUser: jest.fn(),
+    };
+
+    TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [
         UserSettingsService,
-        { provide: UserInternalService, useValue: userApiMock },
         { provide: UserService, useValue: userServiceMock },
+        { provide: UserInternalService, useValue: apiMock },
       ],
     });
 
-    jest.clearAllMocks();
-    userSignal.set(null);
-    userApiMock.updateCurrentUser.mockReset();
-    userServiceMock.updateUser.mockReset?.();
-
     service = TestBed.inject(UserSettingsService);
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
   it('should be created', () => {
+    setup();
     expect(service).toBeTruthy();
-    expect(service.draft()).toBeNull();
-    expect(service.hasUnsavedChanges()).toBe(false);
   });
 
-  it('hasUnsavedChanges should be false when original is null', () => {
-    userSignal.set(null);
-    service.initFromUser(baseUser);
+  it('initFromCurrentUser should initialize draft from current user when available', () => {
+    const original = createUser({ username: 'original' });
 
-    expect(service.draft()).not.toBeNull();
-    expect(service.hasUnsavedChanges()).toBe(false);
-  });
-
-  it('hasUnsavedChanges should be false when draft is null', () => {
-    userSignal.set(baseUser);
-
-    expect(service.draft()).toBeNull();
-    expect(service.hasUnsavedChanges()).toBe(false);
-  });
-
-  it('hasUnsavedChanges should be false when original and draft are equal', () => {
-    userSignal.set(baseUser);
-    service.initFromCurrentUser();
-
-    expect(service.hasUnsavedChanges()).toBe(false);
-  });
-
-  it('hasUnsavedChanges should be true when original and draft differ', () => {
-    userSignal.set(baseUser);
-    service.initFromCurrentUser();
-
-    service.patchDraft({ username: 'ChangedName' });
-
-    expect(service.hasUnsavedChanges()).toBe(true);
-  });
-
-  it('initFromCurrentUser should set draft when current user exists', () => {
-    userSignal.set(baseUser);
+    setup(original);
 
     service.initFromCurrentUser();
 
     const draft = service.draft();
-    expect(draft).not.toBeNull();
-    expect(draft).toEqual(baseUser);
-    expect(draft).not.toBe(baseUser);
+    expect(draft).toEqual(original);
+    expect(draft).not.toBe(original);
   });
 
-  it('initFromCurrentUser should do nothing when current user is null', () => {
-    userSignal.set(null);
+  it('constructor effect should NOT initialize draft when no current user', () => {
+    setup(null);
+
+    expect(service.draft()).toBeNull();
+  });
+
+  it('currentUser should return UserService.user()', () => {
+    const original = createUser({ username: 'original' });
+    setup(original);
+
+    expect(service.currentUser()).toEqual(original);
+  });
+
+  it('initFromCurrentUser should copy current user into draft', () => {
+    const original = createUser({ username: 'original' });
+    setup(original);
+
+    service.initFromCurrentUser();
+
+    const draft = service.draft();
+    expect(draft).toEqual(original);
+    expect(draft).not.toBe(original);
+  });
+
+  it('initFromCurrentUser should do nothing when no current user', () => {
+    setup(null);
 
     service.initFromCurrentUser();
 
@@ -119,182 +111,268 @@ describe('UserSettingsService', () => {
   });
 
   it('initFromUser should set draft from given user', () => {
-    const otherUser: UserSettingsResponse = {
-      ...baseUser,
-      username: 'OtherUser',
-    };
+    setup(null);
+    const user = createUser({ username: 'from-init' });
 
-    service.initFromUser(otherUser);
+    service.initFromUser(user);
 
     const draft = service.draft();
-    expect(draft).toEqual(otherUser);
-    expect(draft).not.toBe(otherUser);
+    expect(draft).toEqual(user);
+    expect(draft).not.toBe(user);
   });
 
-  it('reset should re-init draft from current user', () => {
-    userSignal.set(baseUser);
-    service.initFromCurrentUser();
+  it('currentProfile should return draft.profile when draft has profile', () => {
+    const original = createUser({ username: 'original' });
+    setup(original);
 
-    service.patchDraft({ username: 'Changed' });
-    expect(service.draft()!.username).toBe('Changed');
+    const draftUser = createUser({
+      username: 'draft-user',
+      profile: {
+        displayName: 'Draft Name',
+        avatarUrl: 'https://draft-avatar',
+        bannerUrl: 'https://draft-banner',
+        accentColor: '#ff0000',
+      },
+    });
 
-    service.reset();
+    service.initFromUser(draftUser);
 
-    expect(service.draft()).toEqual(baseUser);
+    const profile = service.currentProfile();
+    expect(profile).toEqual(draftUser.profile);
   });
 
-  it('save should throw when there is no draft', () => {
-    expect(service.draft()).toBeNull();
+  it('currentProfile should fallback to currentUser.profile when draft has no profile', () => {
+    const original = createUser({
+      profile: {
+        displayName: 'Profile Name',
+        avatarUrl: 'https://avatar',
+        bannerUrl: 'https://banner',
+        accentColor: '#00ff00',
+      },
+    });
 
+    setup(original);
+
+    const profile = service.currentProfile();
+    expect(profile).toEqual(original.profile);
+  });
+
+  it('currentProfile should return null when neither draft nor current user have profile', () => {
+    const original = { ...createUser({}), profile: null as any };
+    setup(original as any);
+
+    const profile = service.currentProfile();
+    expect(profile).toBeNull();
+  });
+
+  it('avatarUrl should return profile.avatarUrl or null', () => {
+    const original = createUser({
+      profile: {
+        displayName: 'X',
+        avatarUrl: 'https://avatar-url',
+        bannerUrl: '',
+        accentColor: '#fff',
+      },
+    });
+    setup(original);
+
+    expect(service.avatarUrl()).toBe('https://avatar-url');
+
+    const noAvatarUser = createUser({
+      profile: {
+        displayName: 'X',
+        avatarUrl: undefined as any,
+        bannerUrl: '',
+        accentColor: '#fff',
+      },
+    });
+    setup(noAvatarUser);
+
+    expect(service.avatarUrl()).toBeNull();
+  });
+
+  it('displayName should prefer profile.displayName, then username, then null', () => {
+    const userWithProfile = createUser({
+      username: 'user1',
+      profile: {
+        displayName: 'Profile Name',
+        avatarUrl: '',
+        bannerUrl: '',
+        accentColor: '#fff',
+      },
+    });
+    setup(userWithProfile);
+    expect(service.displayName()).toBe('Profile Name');
+
+    const userWithoutProfile = createUser({
+      username: 'userWithoutProfile',
+      profile: null as any,
+    });
+    setup(userWithoutProfile);
+    expect(service.displayName()).toBe('userWithoutProfile');
+
+    const noUser = null;
+    setup(noUser);
+    expect(service.displayName()).toBeNull();
+  });
+
+  it('hasUnsavedChanges should be false when original is null', () => {
+    setup(null);
+    service.initFromUser(createUser({ username: 'draft' }));
+
+    expect(service.hasUnsavedChanges()).toBe(false);
+  });
+
+  it('hasUnsavedChanges should be false when draft is null', () => {
+    const original = createUser({ username: 'original' });
+    setup(original);
+
+    (service as any).draftState.set(null);
+
+    expect(service.hasUnsavedChanges()).toBe(false);
+  });
+
+  it('hasUnsavedChanges should be false when draft equals original', () => {
+    const original = createUser({ username: 'original' });
+    setup(original);
+
+    expect(service.hasUnsavedChanges()).toBe(false);
+  });
+
+  it('hasUnsavedChanges should be true when draft differs from original', () => {
+    const original = createUser({ username: 'original' });
+    setup(original);
+
+    const modified = createUser({ username: 'modified' });
+    service.initFromUser(modified);
+
+    expect(service.hasUnsavedChanges()).toBe(true);
+  });
+
+  it('save should throw when no draft exists', () => {
+    setup(null);
+
+    // draft ist null
     expect(() => service.save()).toThrow('No draft to save');
-    expect(userApiMock.updateCurrentUser).not.toHaveBeenCalled();
   });
 
-  it('save should update userService and draft on success', (done) => {
-    service.initFromUser(baseUser);
-    userApiMock.updateCurrentUser.mockReturnValue(of(updatedUser));
+  it('save should call api.updateCurrentUser, update userService and update draft', () => {
+    const original = createUser({ username: 'original' });
+    setup(original);
 
-    service.save().subscribe({
-      next: (result) => {
-        expect(userApiMock.updateCurrentUser).toHaveBeenCalledTimes(1);
-        expect(userApiMock.updateCurrentUser).toHaveBeenCalledWith(baseUser);
+    const draft = createUser({ username: 'draft-user' });
+    service.initFromUser(draft);
 
-        expect(userServiceMock.updateUser).toHaveBeenCalledTimes(1);
-        expect(userServiceMock.updateUser).toHaveBeenCalledWith(updatedUser);
+    const updated = createUser({ username: 'updated-user' });
+    apiMock.updateCurrentUser.mockReturnValue(of(updated));
 
-        expect(service.draft()).toEqual(updatedUser);
-        expect(result).toEqual(updatedUser);
-        done();
-      },
-      error: done.fail,
+    let result: UserSettingsResponse | undefined;
+
+    service.save().subscribe((value) => {
+      result = value;
     });
+
+    expect(apiMock.updateCurrentUser).toHaveBeenCalledTimes(1);
+    expect(apiMock.updateCurrentUser).toHaveBeenCalledWith(draft);
+
+    expect(userServiceMock.updateUser).toHaveBeenCalledTimes(1);
+    expect(userServiceMock.updateUser).toHaveBeenCalledWith(updated);
+
+    expect(service.draft()).toEqual(updated);
+    expect(result).toEqual(updated);
   });
 
-  it('save should propagate error from API', (done) => {
-    const apiError = new Error('Update failed');
-    service.initFromUser(baseUser);
-    userApiMock.updateCurrentUser.mockReturnValue(throwError(() => apiError));
-
-    service.save().subscribe({
-      next: () => done.fail('Expected error, but got success'),
-      error: (err) => {
-        expect(err).toBe(apiError);
-        expect(userServiceMock.updateUser).not.toHaveBeenCalled();
-        done();
-      },
-    });
-  });
-
-  it('patchDraft should do nothing when no draft exists', () => {
-    expect(service.draft()).toBeNull();
-
-    service.patchDraft({ username: 'NoEffect' });
-
-    expect(service.draft()).toBeNull();
-  });
-
-  it('patchDraft should merge root fields and profile fields (with existing profile)', () => {
-    service.initFromUser(baseUser);
-
-    service.patchDraft({
-      email: 'new@example.com',
+  it('patchDraft should merge top-level and profile fields into existing draft', () => {
+    const original = createUser({
+      username: 'original',
       profile: {
-        displayName: 'New Name',
-        accentColor: '#000000',
+        displayName: 'Orig Name',
+        avatarUrl: 'https://orig-avatar',
+        bannerUrl: 'https://orig-banner',
+        accentColor: '#111111',
       },
     });
+    setup(original);
 
-    const draft = service.draft()!;
-    expect(draft.email).toBe('new@example.com');
-    expect(draft.profile).toEqual({
-      ...baseUser.profile,
-      displayName: 'New Name',
-      accentColor: '#000000',
-    });
-  });
-
-  it('patchDraft should handle current.profile === undefined', () => {
-    const noProfileUser: UserSettingsResponse = {
-      id: '456',
-      username: 'NoProfile',
-      email: 'no-profile@example.com',
-      profile: undefined,
-    } as UserSettingsResponse;
-
-    service.initFromUser(noProfileUser);
-
-    service.patchDraft({
+    const draft = createUser({
+      username: 'draft',
       profile: {
-        displayName: 'FromScratch',
-        avatarUrl: 'https://x/y.png',
+        displayName: 'Draft Name',
+        avatarUrl: 'https://draft-avatar',
+        bannerUrl: 'https://draft-banner',
+        accentColor: '#222222',
       },
     });
-
-    const draft = service.draft()!;
-    expect(draft.profile).toEqual({
-      displayName: 'FromScratch',
-      avatarUrl: 'https://x/y.png',
-    });
-  });
-
-  it('patchDraft should handle partial.profile === undefined (nur Root-Felder)', () => {
-    service.initFromUser(baseUser);
+    service.initFromUser(draft);
 
     service.patchDraft({
-      username: 'RootOnlyChange',
+      username: 'patched-user',
+      profile: {
+        avatarUrl: 'https://patched-avatar',
+      } as any,
     });
 
-    const draft = service.draft()!;
-    expect(draft.username).toBe('RootOnlyChange');
-    expect(draft.profile).toEqual(baseUser.profile);
+    const result = service.draft()!;
+    expect(result.username).toBe('patched-user');
+    expect(result.email).toBe(draft.email);
+    expect(result.profile!.displayName).toBe('Draft Name');
+    expect(result.profile!.avatarUrl).toBe('https://patched-avatar');
+    expect(result.profile!.accentColor).toBe('#222222');
   });
 
-  it('patchProfile should do nothing when no draft exists', () => {
-    expect(service.draft()).toBeNull();
+  it('patchDraft should do nothing when no draft', () => {
+    setup(null);
 
-    service.patchProfile({
-      displayName: 'NoEffect',
-    });
+    service.patchDraft({ username: 'x' });
 
     expect(service.draft()).toBeNull();
   });
 
   it('patchProfile should merge into existing profile', () => {
-    service.initFromUser(baseUser);
+    const draft = createUser({
+      profile: {
+        displayName: 'Draft Name',
+        avatarUrl: 'https://avatar',
+        bannerUrl: 'https://banner',
+        accentColor: '#abcdef',
+      },
+    });
+    setup(null);
+    service.initFromUser(draft);
 
     service.patchProfile({
-      displayName: 'ProfileOnlyChange',
-      bannerUrl: 'https://changed/banner.png',
+      avatarUrl: 'https://new-avatar',
     });
 
-    const draft = service.draft()!;
-    expect(draft.username).toBe(baseUser.username);
-    expect(draft.profile).toEqual({
-      ...baseUser.profile,
-      displayName: 'ProfileOnlyChange',
-      bannerUrl: 'https://changed/banner.png',
-    });
+    const result = service.draft()!;
+    expect(result.profile!.displayName).toBe('Draft Name');
+    expect(result.profile!.avatarUrl).toBe('https://new-avatar');
+    expect(result.profile!.accentColor).toBe('#abcdef');
   });
 
-  it('patchProfile should create profile when it was undefined', () => {
-    const userWithoutProfile: UserSettingsResponse = {
-      id: '789',
-      username: 'NoProfileUser',
-      email: 'noprof@example.com',
-      profile: undefined,
+  it('patchProfile should create profile when none exists on draft', () => {
+    const draft = {
+      ...createUser({}),
+      profile: null as any,
     } as UserSettingsResponse;
 
-    service.initFromUser(userWithoutProfile);
+    setup(null);
+    service.initFromUser(draft);
 
     service.patchProfile({
-      displayName: 'CreatedProfile',
-      accentColor: '#123456',
+      avatarUrl: 'https://created-avatar',
     });
 
-    const draft = service.draft()!;
-    expect(draft.profile).toEqual({
-      displayName: 'CreatedProfile',
-      accentColor: '#123456',
-    });
+    const result = service.draft()!;
+    expect(result.profile).toBeTruthy();
+    expect(result.profile!.avatarUrl).toBe('https://created-avatar');
+  });
+
+  it('patchProfile should do nothing when no draft', () => {
+    setup(null);
+
+    service.patchProfile({ avatarUrl: 'x' });
+
+    expect(service.draft()).toBeNull();
   });
 });

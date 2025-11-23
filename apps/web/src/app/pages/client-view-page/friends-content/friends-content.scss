@@ -1,0 +1,53 @@
+@use "../../../styles/colors" as *;
+
+header {
+  width: 100%;
+  height: 50px;
+  background: $background-secondary;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 20px;
+
+  .title {
+
+    font-size: 1.05rem;
+    color: #a0a0a0;
+
+    fa-icon {
+      font-size: 1.2rem;
+    }
+  }
+
+  .header-btn {
+    min-width: 50px;
+    height: 35px;
+    font-size: 1rem;
+    border-radius: 4px;
+    padding: 7px 10px;
+    border: none;
+    outline: none;
+    background: $background-secondary;
+    color: #c0c0c0;
+    cursor: pointer;
+    transition: .2s all;
+
+    &:hover {
+      background: lighten($background-secondary, 5%);
+    }
+  }
+
+  .header-friend-btn {
+    background: #5c3ad4;
+    color: #d0d0d0;
+    transition: .2s all;
+
+    &:hover {
+      background: lighten(#5c3ad4, 5%);
+    }
+
+    fa-icon {
+      font-size: 0.9rem;
+    }
+  }
+}

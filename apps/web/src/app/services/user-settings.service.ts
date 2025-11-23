@@ -1,4 +1,4 @@
-import {computed, effect, inject, Injectable, signal} from '@angular/core';
+import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { UserInternalService, UserSettingsResponse } from '../api';
 import { UserService } from './user.service';
 import { Observable } from 'rxjs';
@@ -9,8 +9,29 @@ export class UserSettingsService {
   private readonly api = inject(UserInternalService);
   private readonly userService = inject(UserService);
 
+  readonly currentUser = computed<UserSettingsResponse | null>(() => this.userService.user());
+
   private readonly draftState = signal<UserSettingsResponse | null>(null);
   readonly draft = this.draftState.asReadonly();
+
+  readonly currentProfile = computed(() => {
+    const draft = this.draftState();
+    if (draft?.profile) return draft.profile;
+
+    const current = this.currentUser();
+    return current?.profile ?? null;
+  });
+
+  readonly avatarUrl = computed<string | null>(() => {
+    const profile = this.currentProfile();
+    return profile?.avatarUrl ?? null;
+  });
+
+  readonly displayName = computed<string | null>(() => {
+    const user = this.currentUser();
+    const profile = this.currentProfile();
+    return profile?.displayName ?? user?.username ?? null;
+  });
 
   readonly hasUnsavedChanges = computed(() => {
     const original = this.userService.user();

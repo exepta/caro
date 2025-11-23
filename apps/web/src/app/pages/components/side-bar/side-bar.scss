@@ -1,0 +1,158 @@
+@use "../../../styles/colors" as *;
+
+.side-bar {
+  position: relative;
+  width: 350px;
+  height: 100%;
+  background: $background-primary;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  padding: 5px;
+  overflow: hidden;
+
+  .user-section {
+    width: 100%;
+    height: 75px; // 160px if we ar in a call or something else 80px
+    background: $background-secondary;
+    border-radius: 8px;
+    padding: 5px;
+    display: flex;
+    flex-direction: column;
+
+    .user-box {
+      width: 100%;
+      height: 65px;
+      display: flex;
+      justify-content: space-between;
+      overflow: hidden;
+
+      .user-info {
+        width: 250px;
+        height: 100%;
+        display: flex;
+        justify-content: start;
+        align-items: center;
+        padding: 0 10px;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: .2s all;
+
+        .user-avatar {
+          width: 50px;
+          height: 50px;
+          border-radius: 50%;
+          background: $background-primary;
+          overflow: hidden;
+
+          img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+          }
+        }
+
+        .user-text {
+          width: 150px;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: start;
+          padding-left: 10px;
+
+          h5 {
+            font-size: 1rem;
+            color: #fff;
+          }
+
+          span {
+            font-size: 0.8rem;
+            color: #a0a0a0;
+          }
+        }
+
+        &:hover {
+          background: lighten($background-secondary, 5%);
+        }
+      }
+
+      .user-tool-bar {
+        width: 120px;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+
+        .tool-btn {
+          width: 25px;
+          height: 25px;
+          padding: 5px;
+          border-radius: 50%;
+          background: transparent;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          cursor: pointer;
+          border: none;
+          outline: none;
+          font-size: 1rem;
+          color: #a0a0a0;
+          background: $background-secondary;
+          transition: .2s all;
+
+          &:hover {
+            color: lighten(#a0a0a0, 20%);
+          }
+        }
+      }
+    }
+  }
+
+  .navigation-section {
+    padding: 10px 0;
+    width: 100%;
+    height: 140px;
+    display: flex;
+    justify-content: start;
+    align-items: start;
+    flex-direction: column;
+    gap: 3px;
+    border-bottom: 1px solid lighten($background-primary, 5%);
+
+    .nav-entry {
+      width: 100%;
+      height: 40px;
+      background: $background-primary;
+      transition: .2s all;
+      border-radius: 6px;
+      padding: 0 26px;
+      cursor: pointer;
+      display: flex;
+      justify-content: start;
+      align-items: center;
+      gap: 20px;
+
+      &:hover {
+        background: lighten($background-primary, 5%);
+      }
+
+      fa-icon {
+        font-size: 1.1rem;
+        color: #a0a0a0;
+      }
+
+      .nav-text {
+        font-size: 0.9rem;
+        color: #a0a0a0;
+      }
+    }
+
+    .nav-active {
+      background: lighten($background-primary, 5%);
+    }
+  }
+}
+

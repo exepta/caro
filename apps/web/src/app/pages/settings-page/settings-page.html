@@ -5,13 +5,19 @@
         <h3 class="headline-uppercase">User Settings</h3>
 
         @for (p of pages; track p.type) {
-          <button
-            class="set-link"
-            [class.active]="openPage() === p.type"
-            (click)="setPage(p.type)"
-          >
-            {{ p.label }}
-          </button>
+          @if (p.type === SettingsPageType.Split) {
+            <div class="settings-separator">
+              <div class="separator-line"></div>
+            </div>
+          } @else {
+            <button
+              class="set-link"
+              [class.active]="openPage() === p.type"
+              (click)="onNavClick(p)"
+            >
+              {{ p.label }}
+            </button>
+          }
         }
 
       </div>
@@ -27,6 +33,7 @@
           @case (SettingsPageType.Security) {
             <app-settings-privacy-and-security-module />
           }
+          @case (SettingsPageType.Logout) { }
           @default {
             <p>Page not found</p>
           }
@@ -58,3 +65,25 @@
 >
   X
 </button>
+
+@if (showLogoutModal()) {
+  <div class="modal-backdrop" (click)="closeLogoutModal()">
+    <div class="modal">
+      <header class="modal-header">
+        <h4>Logout</h4>
+      </header>
+      <section class="modal-body">
+        <p class="description">Are you sure you want to logout?</p>
+      </section>
+
+      <footer class="modal-footer">
+        <button type="button" class="normal-btn" (click)="closeLogoutModal()">
+          Cancel
+        </button>
+        <button type="button" class="danger-btn" (click)="confirmLogout()">
+          Logout
+        </button>
+      </footer>
+    </div>
+  </div>
+}
