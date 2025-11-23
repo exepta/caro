@@ -28,4 +28,33 @@
     </div>
 
   </div>
+
+  <div class="navigation-section">
+    <div
+      class="nav-entry"
+      [class.nav-active]="activeSection === 'friends'"
+      (click)="onSelectSection('friends')"
+    >
+      <fa-icon [icon]="faUser"></fa-icon>
+      <span class="nav-text">Friends</span>
+    </div>
+
+    <div
+      class="nav-entry"
+      [class.nav-active]="activeSection === 'groups'"
+      (click)="onSelectSection('groups')"
+    >
+      <fa-icon [icon]="faUserGroup"></fa-icon>
+      <span class="nav-text">Groups</span>
+    </div>
+
+    <div
+      class="nav-entry"
+      [class.nav-active]="activeSection === 'servers'"
+      (click)="onSelectSection('servers')"
+    >
+      <fa-icon [icon]="faServer"></fa-icon>
+      <span class="nav-text">Servers</span>
+    </div>
+  </div>
 </div>

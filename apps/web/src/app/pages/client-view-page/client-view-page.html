@@ -1,1 +1,22 @@
-<app-side-bar (settingsClick)="openSettings()"></app-side-bar>
+<app-side-bar
+  [activeSection]="currentSection()"
+  (settingsClick)="openSettings()"
+  (sectionChange)="onSectionChange($event)"
+></app-side-bar>
+
+<div class="client-view-content">
+  @switch (currentSection()) {
+    @case ('friends') {
+      <app-friends-content />
+    }
+    @case ('groups') {
+      <app-groups-content />
+    }
+    @case ('servers') {
+      <app-servers-content />
+    }
+    @default {
+      <p>Unknown section</p>
+    }
+  }
+</div>

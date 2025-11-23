@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { ClientViewPage } from './client-view-page';
 import { AuthService } from '../../services/auth.service';
+import { SideBarSection } from '../components/side-bar/side-bar';
 import { UserSettingsService } from '../../services/user-settings.service';
 
 describe('ClientViewPage', () => {
@@ -22,17 +23,15 @@ describe('ClientViewPage', () => {
       avatarUrl: (() => null) as any,
       displayName: (() => 'Test User') as any,
       initFromCurrentUser: jest.fn(),
+      hasUnsavedChanges: jest.fn(() => false) as any,
     };
 
     await TestBed.configureTestingModule({
-      imports: [ClientViewPage],
+      imports: [ClientViewPage], // Standalone Component
       providers: [
         { provide: Router, useValue: routerMock },
         { provide: AuthService, useValue: authServiceMock },
-        {
-          provide: UserSettingsService,
-          useValue: userSettingsServiceMock as UserSettingsService,
-        },
+        { provide: UserSettingsService, useValue: userSettingsServiceMock },
       ],
     }).compileComponents();
 
@@ -43,8 +42,12 @@ describe('ClientViewPage', () => {
     authService = TestBed.inject(AuthService) as jest.Mocked<AuthService>;
   });
 
-  it('should be created', () => {
+  it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('should have "friends" as default currentSection', () => {
+    expect(component.currentSection()).toBe<'friends'>('friends');
   });
 
   it('openSettings should navigate to /settings', () => {
@@ -58,5 +61,13 @@ describe('ClientViewPage', () => {
     component.logout();
 
     expect(authService.logout).toHaveBeenCalledTimes(1);
+  });
+
+  it('onSectionChange should update currentSection signal', () => {
+    const section: SideBarSection = 'groups';
+
+    component.onSectionChange(section);
+
+    expect(component.currentSection()).toBe('groups');
   });
 });
