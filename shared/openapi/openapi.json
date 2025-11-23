@@ -16,6 +16,24 @@
     },
     "/api/user/me": {
       "$ref": "./api-user.json#/paths/~1api~1user~1me"
+    },
+    "/api/user/{id}": {
+      "$ref": "./api-user.json#/paths/~1api~1user~1{id}"
+    },
+    "/api/user/username/{username}": {
+      "$ref": "./api-user.json#/paths/~1api~1user~1username~1{username}"
+    },
+    "/api/friends/requests": {
+      "$ref": "./api-friends.json#/paths/~1api~1friends~1requests"
+    },
+    "/api/friends/requests/{id}/accept": {
+      "$ref": "./api-friends.json#/paths/~1api~1friends~1requests~1{id}~1accept"
+    },
+    "/api/friends/{friendId}": {
+      "$ref": "./api-friends.json#/paths/~1api~1friends~1{friendId}"
+    },
+    "/api/friends": {
+      "$ref": "./api-friends.json#/paths/~1api~1friends"
     }
   },
   "components": {
@@ -37,6 +55,12 @@
       },
       "UserSettingsResponse": {
         "$ref": "./api-user.json#/components/schemas/UserSettingsResponse"
+      },
+      "SendFriendRequest": {
+        "$ref": "./api-friends.json#/components/schemas/SendFriendRequest"
+      },
+      "FriendResponse": {
+        "$ref": "./api-friends.json#/components/schemas/FriendResponse"
       }
     }
   }

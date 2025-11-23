@@ -1,0 +1,196 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Caro Backend Voice API - Friends",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/friends/requests": {
+      "post": {
+        "tags": ["FriendsInternal"],
+        "summary": "Send a friend request",
+        "operationId": "sendFriendRequest",
+        "security": [
+          {
+            "AccessTokenAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendFriendRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Friend request sent successfully"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Friend request already exists or cannot be created"
+          }
+        }
+      }
+    },
+
+    "/api/friends/requests/{id}/accept": {
+      "post": {
+        "tags": ["FriendsInternal"],
+        "summary": "Accept a friend request",
+        "operationId": "acceptFriendRequest",
+        "security": [
+          {
+            "AccessTokenAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Friend request accepted"
+          },
+          "400": {
+            "description": "Invalid friendship id or request is not pending"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Friend request not found"
+          }
+        }
+      }
+    },
+
+    "/api/friends/{friendId}": {
+      "delete": {
+        "tags": ["FriendsInternal"],
+        "summary": "Remove a friend",
+        "operationId": "unfriend",
+        "security": [
+          {
+            "AccessTokenAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "friendId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Friend removed"
+          },
+          "400": {
+            "description": "Invalid friend id"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Friendship not found"
+          }
+        }
+      }
+    },
+
+    "/api/friends": {
+      "get": {
+        "tags": ["FriendsInternal"],
+        "summary": "Get friend list",
+        "operationId": "getFriends",
+        "security": [
+          {
+            "AccessTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of friends",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FriendResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    }
+  },
+
+  "components": {
+    "securitySchemes": {
+      "AccessTokenAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+
+    "schemas": {
+      "SendFriendRequest": {
+        "type": "object",
+        "required": ["targetUserId"],
+        "properties": {
+          "targetUserId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "50bf668d-04d7-496e-856f-6496288606f3"
+          }
+        }
+      },
+
+      "FriendResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "5116e831-ec5a-4127-979a-768ac27b8b2b"
+          },
+          "username": {
+            "type": "string",
+            "example": "Exepta"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "exepta@example.com"
+          }
+        }
+      }
+    }
+  }
+}
