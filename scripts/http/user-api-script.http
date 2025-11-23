@@ -11,3 +11,13 @@ Content-Type: application/json
   "firstName": "Carolin",
   "lastName": "Winter"
 }
+
+### GET request to fetch a user by id
+@id = 5116e831-ec5a-4127-979a-768ac27b8b2b
+GET http://localhost:8080/api/user/{{id}}
+Authorization: Bearer {{refreshToken}}
+
+### GET request to search users by username
+@username = test
+GET http://localhost:8080/api/user/username/{{username}}
+Authorization: Bearer {{refreshToken}}

@@ -57,8 +57,36 @@ public class UserRestController {
         }
 
         CaroUser savedUser = userService.save(userId, request);
-        System.out.println("Saved user: " + savedUser.getProfile().getDisplayName());
         return ResponseEntity.ok(UserSettingsResponse.from(savedUser));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<UserSettingsResponse> getById(@PathVariable("id") String userId) {
+        if (userId == null || userId.isEmpty() || "anonymousUser".equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nothing Happens");
+        }
+
+        try {
+            UUID.fromString(userId);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid user id");
+        }
+
+        CaroUser user = userRepository.findById(UUID.fromString(userId))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        return ResponseEntity.ok(UserSettingsResponse.from(user));
+    }
+
+    @GetMapping("/username/{username}")
+    public ResponseEntity<UserSettingsResponse> getByUsername(@PathVariable("username") String username) {
+        if (username == null || username.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username cannot be empty");
+        }
+
+        CaroUser user = userRepository.findByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        return ResponseEntity.ok(UserSettingsResponse.from(user));
+    }
 }

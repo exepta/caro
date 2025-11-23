@@ -1,0 +1,24 @@
+### POST send a friend request to another user
+POST http://localhost:8080/api/friends/requests
+Authorization: Bearer {{refreshToken}}
+Content-Type: application/json
+
+{
+  "targetUserId": "5116e831-ec5a-4127-979a-768ac27b8b2b"
+}
+
+### POST accept a friend request from another user
+### This is the id filed of friendship
+@id = e976f12a-552a-41fa-8d9d-d0bc9cb06f1a
+POST http://localhost:8080/api/friends/requests/{{id}}/accept
+Authorization: Bearer {{refreshToken}}
+
+### DELETE remove a friend
+### Note the id is requester_id of friendship
+@friendId = 5116e831-ec5a-4127-979a-768ac27b8b2b
+DELETE http://localhost:8080/api/friends/{{friendId}}
+Authorization: Bearer {{refreshToken}}
+
+### GET list of friends
+GET http://localhost:8080/api/friends
+Authorization: Bearer {{refreshToken}}

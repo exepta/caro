@@ -14,6 +14,7 @@ services:
       - ../scripts/sql/users.sql:/docker-entrypoint-initdb.d/01-users.sql:ro
       - ../scripts/sql/refresh-tokens.sql:/docker-entrypoint-initdb.d/02-refresh-tokens.sql:ro
       - ../scripts/sql/profile.sql:/docker-entrypoint-initdb.d/03-profile.sql:ro
+      - ../scripts/sql/friends.sql:/docker-entrypoint-initdb.d/04-friends.sql:ro
 
 volumes:
   db-data:
