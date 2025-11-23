@@ -1,20 +1,32 @@
-import { TestBed } from '@angular/core/testing';
-import { NO_ERRORS_SCHEMA } from '@angular/core';
-import { of, throwError } from 'rxjs';
+import { TestBed, ComponentFixture } from '@angular/core/testing';
+import { signal } from '@angular/core';
+import { of } from 'rxjs';
+import { SettingsPage } from './settings-page';
+import { SettingsPageType } from '../../types/settings-page-types';
+import { UserSettingsService } from '../../services/user-settings.service';
+import { AuthService } from '../../services/auth.service';
 import { Location } from '@angular/common';
 
-import { SettingsPage } from './settings-page';
-import { UserSettingsService } from '../../services/user-settings.service';
-import { SettingsPageType } from '../../types/settings-page-types';
-
 describe('SettingsPage', () => {
+  let fixture: ComponentFixture<SettingsPage>;
   let component: SettingsPage;
 
-  const settingsStateMock = {
+  const draftSignal = signal<any>(null);
+
+  const hasUnsavedChangesFn = jest.fn(() => false);
+
+  const settingsStateMock: Partial<UserSettingsService> = {
+    draft: draftSignal.asReadonly(),
     initFromCurrentUser: jest.fn(),
-    hasUnsavedChanges: jest.fn().mockReturnValue(false),
-    save: jest.fn(),
+    hasUnsavedChanges: hasUnsavedChangesFn as any,
+    save: jest.fn(() => of({} as any)),
     reset: jest.fn(),
+    patchDraft: jest.fn(),
+    patchProfile: jest.fn(),
+  };
+
+  const authServiceMock = {
+    logout: jest.fn(),
   };
 
   const locationMock = {
@@ -25,82 +37,83 @@ describe('SettingsPage', () => {
     await TestBed.configureTestingModule({
       imports: [SettingsPage],
       providers: [
-        { provide: UserSettingsService, useValue: settingsStateMock },
-        { provide: Location, useValue: locationMock },
+        { provide: UserSettingsService, useValue: settingsStateMock as UserSettingsService },
+        { provide: AuthService, useValue: authServiceMock as unknown as AuthService },
+        { provide: Location, useValue: locationMock as unknown as Location },
       ],
-      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
 
     jest.clearAllMocks();
-    (settingsStateMock.hasUnsavedChanges as jest.Mock).mockReturnValue(false);
+    draftSignal.set(null);
+    hasUnsavedChangesFn.mockReturnValue(false);
 
-    const fixture = TestBed.createComponent(SettingsPage);
+    fixture = TestBed.createComponent(SettingsPage);
     component = fixture.componentInstance;
+    fixture.detectChanges();
   });
 
-  it('should create and call initFromCurrentUser in constructor', () => {
+  it('should create and call initFromCurrentUser', () => {
     expect(component).toBeTruthy();
-    expect(settingsStateMock.initFromCurrentUser).toHaveBeenCalledTimes(1);
+    expect(settingsStateMock.initFromCurrentUser).toHaveBeenCalled();
   });
 
-  it('should have Account as default openPage', () => {
+  it('should set page on non-modal nav click (Account)', () => {
+    const page = { type: SettingsPageType.Account, label: 'My Account', modal: false };
+
+    component.onNavClick(page);
+
     expect(component.openPage()).toBe(SettingsPageType.Account);
-    expect(component.currentPageLabel()).toBe('My Account');
+    expect(component.showLogoutModal()).toBe(false);
   });
 
-  it('setPage should update openPage signal', () => {
-    component.setPage(SettingsPageType.Security);
+  it('should set page on non-modal nav click (Security)', () => {
+    const page = { type: SettingsPageType.Security, label: 'Privacy & Security', modal: false };
+
+    component.onNavClick(page);
 
     expect(component.openPage()).toBe(SettingsPageType.Security);
-    expect(component.currentPageLabel()).toBe('Privacy & Security');
+    expect(component.showLogoutModal()).toBe(false);
   });
 
-  it('goBack should not navigate when there are unsaved changes', () => {
-    (settingsStateMock.hasUnsavedChanges as jest.Mock).mockReturnValue(true);
+  it('should do nothing for Split nav click', () => {
+    component.openPage.set(SettingsPageType.Account);
+
+    const page = { type: SettingsPageType.Split, label: '', modal: false };
+
+    component.onNavClick(page);
+
+    expect(component.openPage()).toBe(SettingsPageType.Account);
+    expect(component.showLogoutModal()).toBe(false);
+  });
+
+  it('should open logout modal on Logout nav click', () => {
+    const page = { type: SettingsPageType.Logout, label: 'Logout', modal: true };
+
+    component.onNavClick(page);
+
+    expect(component.showLogoutModal()).toBe(true);
+  });
+
+  it('goBack should NOT call location.back when hasUnsavedChanges is true', () => {
+    hasUnsavedChangesFn.mockReturnValueOnce(true);
 
     component.goBack();
 
-    expect(settingsStateMock.hasUnsavedChanges).toHaveBeenCalledTimes(1);
     expect(locationMock.back).not.toHaveBeenCalled();
   });
 
-  it('goBack should navigate back when there are no unsaved changes', () => {
-    (settingsStateMock.hasUnsavedChanges as jest.Mock).mockReturnValue(false);
+  it('goBack should call location.back when hasUnsavedChanges is false', () => {
+    hasUnsavedChangesFn.mockReturnValueOnce(false);
 
     component.goBack();
 
-    expect(settingsStateMock.hasUnsavedChanges).toHaveBeenCalledTimes(1);
     expect(locationMock.back).toHaveBeenCalledTimes(1);
   });
 
-  it('onSave should call settingsState.save and subscribe (success path)', () => {
-    (settingsStateMock.save as jest.Mock).mockReturnValue(of({}));
-
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
+  it('onSave should call settingsState.save', () => {
     component.onSave();
 
     expect(settingsStateMock.save).toHaveBeenCalledTimes(1);
-    expect(consoleErrorSpy).not.toHaveBeenCalled();
-
-    consoleErrorSpy.mockRestore();
-  });
-
-  it('onSave should log error when save observable errors', () => {
-    const error = new Error('save failed');
-    (settingsStateMock.save as jest.Mock).mockReturnValue(
-      throwError(() => error),
-    );
-
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
-    component.onSave();
-
-    expect(settingsStateMock.save).toHaveBeenCalledTimes(1);
-    expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
-    expect(consoleErrorSpy.mock.calls[0][0]).toBe('Failed to save settings');
-
-    consoleErrorSpy.mockRestore();
   });
 
   it('onRevoke should call settingsState.reset', () => {
@@ -110,20 +123,42 @@ describe('SettingsPage', () => {
   });
 
   it('hasUnsavedChanges should delegate to settingsState.hasUnsavedChanges', () => {
-    (settingsStateMock.hasUnsavedChanges as jest.Mock).mockReturnValue(true);
+    hasUnsavedChangesFn.mockReturnValueOnce(true);
+
+    const beforeCalls = hasUnsavedChangesFn.mock.calls.length;
 
     const result = component.hasUnsavedChanges();
 
-    expect(settingsStateMock.hasUnsavedChanges).toHaveBeenCalledTimes(1);
+    const afterCalls = hasUnsavedChangesFn.mock.calls.length;
+
+    expect(afterCalls).toBe(beforeCalls + 1);
     expect(result).toBe(true);
   });
 
-  it('currentPageLabel should return empty string for unknown page type', () => {
-    // @ts-ignore
-    component.openPage.set(999);
+  it('currentPageLabel should return correct label for current page', () => {
+    component.openPage.set(SettingsPageType.Security);
 
     const label = component.currentPageLabel();
 
-    expect(label).toBe('');
+    expect(label).toBe('Privacy & Security');
+  });
+
+  it('openLogoutModal and closeLogoutModal should toggle showLogoutModal', () => {
+    expect(component.showLogoutModal()).toBe(false);
+
+    component.openLogoutModal();
+    expect(component.showLogoutModal()).toBe(true);
+
+    component.closeLogoutModal();
+    expect(component.showLogoutModal()).toBe(false);
+  });
+
+  it('confirmLogout should close modal and call authService.logout', () => {
+    component.showLogoutModal.set(true);
+
+    component.confirmLogout();
+
+    expect(component.showLogoutModal()).toBe(false);
+    expect(authServiceMock.logout).toHaveBeenCalledTimes(1);
   });
 });

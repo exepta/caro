@@ -1,10 +1,13 @@
 import {Component, inject} from '@angular/core';
 import {Router} from '@angular/router';
 import {AuthService} from '../../services/auth.service';
+import {SideBar} from '../components/side-bar/side-bar';
 
 @Component({
   selector: 'app-client-view-page',
-  imports: [],
+  imports: [
+    SideBar
+  ],
   templateUrl: './client-view-page.html',
   styleUrl: './client-view-page.scss',
 })

@@ -1,0 +1,31 @@
+<div class="side-bar">
+  <div class="user-section">
+
+    <div class="user-box">
+      <div class="user-info">
+
+        <div class="user-avatar">
+          <img [src]="avatarUrl()" alt="User avatar" />
+        </div>
+        <div class="user-text">
+          <h5>{{ displayName() || 'Unknown User' }}</h5>
+          <span>connected voice</span>
+        </div>
+
+      </div>
+
+      <div class="user-tool-bar">
+        <button class="tool-btn" (click)="onSettingsClick()">
+          <fa-icon [icon]="faGear"></fa-icon>
+        </button>
+        <button class="tool-btn">
+          <fa-icon [icon]="faMicrophone"></fa-icon>
+        </button>
+        <button class="tool-btn">
+          <fa-icon [icon]="faHeadphones"></fa-icon>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>

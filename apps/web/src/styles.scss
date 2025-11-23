@@ -95,6 +95,23 @@ h3 {
   }
 }
 
+.danger-btn {
+  width: 140px;
+  height: 35px;
+  color: #e0e0e0;
+  font-size: 0.95rm;
+  background: #d9254e;
+  border-radius: 4px;
+  outline: none;
+  border: none;
+  cursor: pointer;
+  transition: .2s all;
+
+  &:hover {
+    filter: brightness(1.2);
+  }
+}
+
 .accent-highlight {
   color: #5c3ad4;
   font-weight: bold;
@@ -142,8 +159,8 @@ h3 {
   border-radius: 8px;
   border: 1px solid #26282d;
   padding: 1rem 1.25rem;
-  min-width: 320px;
-  max-width: 480px;
+  min-width: 600px;
+  max-width: 650px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
   display: flex;
   flex-direction: column;
@@ -162,7 +179,11 @@ h3 {
   flex-direction: column;
   gap: 8px;
 
-
+  .description {
+    color: #a0a0a0;
+    font-size: 0.9rem;
+    margin-bottom: 5px;
+  }
 }
 
 /* Footer */
