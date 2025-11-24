@@ -80,6 +80,68 @@
       }
     },
 
+    "/api/friends/requests/outgoing": {
+      "get": {
+        "tags": ["FriendsInternal"],
+        "summary": "Get outgoing friend requests",
+        "operationId": "getOutgoingFriendRequests",
+        "security": [
+          {
+            "AccessTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of outgoing friend requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FriendRequestResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+
+    "/api/friends/requests/incoming": {
+      "get": {
+        "tags": ["FriendsInternal"],
+        "summary": "Get incoming friend requests",
+        "operationId": "getIncomingFriendRequests",
+        "security": [
+          {
+            "AccessTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of incoming friend requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FriendRequestResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+
     "/api/friends/{friendId}": {
       "delete": {
         "tags": ["FriendsInternal"],
@@ -158,7 +220,6 @@
         "bearerFormat": "JWT"
       }
     },
-
     "schemas": {
       "SendFriendRequest": {
         "type": "object",
@@ -190,6 +251,63 @@
             "example": "exepta@example.com"
           }
         }
+      },
+
+      "FriendshipStatus": {
+        "type": "string",
+        "description": "Status of a friendship",
+        "enum": ["PENDING", "ACCEPTED", "DECLINED", "BLOCKED"]
+      },
+
+      "FriendRequestDirection": {
+        "type": "string",
+        "description": "Direction of the friend request relative to the current user",
+        "enum": ["OUTGOING", "INCOMING"]
+      },
+
+      "FriendRequestResponse": {
+        "type": "object",
+        "properties": {
+          "friendshipId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "9a5c8bf0-3d5f-4df0-9b9b-0f7c2b0a0e11"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "5116e831-ec5a-4127-979a-768ac27b8b2b"
+          },
+          "username": {
+            "type": "string",
+            "example": "Exepta"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "exepta@example.com"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FriendshipStatus"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/FriendRequestDirection"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2025-11-24T10:30:00Z"
+          }
+        },
+        "required": [
+          "friendshipId",
+          "userId",
+          "username",
+          "email",
+          "status",
+          "direction",
+          "createdAt"
+        ]
       }
     }
   }

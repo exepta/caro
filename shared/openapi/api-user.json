@@ -143,6 +143,42 @@
           }
         }
       }
+    },
+    "/api/user/search": {
+      "get": {
+        "tags": ["UserInternal"],
+        "summary": "Search users by username (partial match)",
+        "operationId": "searchUsersByUsername",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Partial username to search for, e.g. 'exe' -> 'Exepta'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of matching users",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserSettingsResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Query cannot be empty"
+          }
+        }
+      }
     }
   },
   "components": {

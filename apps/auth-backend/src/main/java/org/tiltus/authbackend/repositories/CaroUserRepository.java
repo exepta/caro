@@ -6,6 +6,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.tiltus.authbackend.model.CaroUser;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,4 +26,5 @@ public interface CaroUserRepository extends JpaRepository<CaroUser, UUID> {
     boolean existsByUsernameIgnoreCase(String username);
     boolean existsByUsernameIgnoreCaseAndTagId(String username, String tagId);
 
+    List<CaroUser> findTop10ByUsernameIgnoreCaseContaining(String query);
 }

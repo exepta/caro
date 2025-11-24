@@ -8,6 +8,7 @@ import org.tiltus.authbackend.model.CaroFriendship;
 import org.tiltus.authbackend.model.CaroUser;
 import org.tiltus.authbackend.repositories.CaroFriendshipRepository;
 import org.tiltus.authbackend.repositories.CaroUserRepository;
+import org.tiltus.authbackend.rest.response.FriendRequestResponse;
 import org.tiltus.authbackend.rest.response.FriendResponse;
 
 import java.util.List;
@@ -81,6 +82,11 @@ public class CaroFriendshipService {
         friendship.setStatus(FriendshipStatus.ACCEPTED);
     }
 
+    public void declineRequest(UUID currentUserId, UUID friendshipId) {
+        CaroFriendship friendship = friendshipRepository.findById(friendshipId)
+                .orElseThrow(() -> new IllegalArgumentException("Friendship does not exist!"));
+    }
+
     public void unfriend(UUID currentUserId, UUID friendId) {
         var friendshipOpt = friendshipRepository.findBetween(currentUserId, friendId);
 
@@ -109,6 +115,32 @@ public class CaroFriendshipService {
                             : f.getRequester();
 
                     return FriendResponse.fromUser(friendUser);
+                })
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<FriendRequestResponse> getOutgoingRequests(UUID userId) {
+        List<CaroFriendship> friendships =
+                friendshipRepository.findByRequester_IdAndStatus(userId, FriendshipStatus.PENDING);
+
+        return friendships.stream()
+                .map(f -> {
+                    CaroUser addressee = f.getAddressee();
+                    return FriendRequestResponse.outgoing(f, addressee);
+                })
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<FriendRequestResponse> getIncomingRequests(UUID userId) {
+        List<CaroFriendship> friendships =
+                friendshipRepository.findByAddressee_IdAndStatus(userId, FriendshipStatus.PENDING);
+
+        return friendships.stream()
+                .map(f -> {
+                    CaroUser requester = f.getRequester();
+                    return FriendRequestResponse.incoming(f, requester);
                 })
                 .toList();
     }

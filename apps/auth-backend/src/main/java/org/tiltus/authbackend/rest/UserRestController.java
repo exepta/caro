@@ -12,6 +12,7 @@ import org.tiltus.authbackend.rest.requests.UserSettingsRequest;
 import org.tiltus.authbackend.rest.response.UserSettingsResponse;
 import org.tiltus.authbackend.services.CaroUserService;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -88,5 +89,22 @@ public class UserRestController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         return ResponseEntity.ok(UserSettingsResponse.from(user));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<UserSettingsResponse>> searchByUsername(
+            @RequestParam("q") String query
+    ) {
+        if (query == null || query.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Query cannot be empty");
+        }
+
+        List<CaroUser> users = userRepository.findTop10ByUsernameIgnoreCaseContaining(query);
+
+        var responses = users.stream()
+                .map(UserSettingsResponse::from)
+                .toList();
+
+        return ResponseEntity.ok(responses);
     }
 }
