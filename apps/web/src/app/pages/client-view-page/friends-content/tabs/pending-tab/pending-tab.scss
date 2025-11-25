@@ -79,10 +79,12 @@
   border-top: 1px solid #3b3d43;
 
   height: 0;
-  overflow: hidden;
+  // overflow: hidden;
+  overflow: visible;       // Tooltip darf rausgucken
   opacity: 0;
   transform: translateY(-5px);
   pointer-events: none;
+  position: relative;      // Referenz für Tooltips
 
   transition:
     height 0.2s ease,

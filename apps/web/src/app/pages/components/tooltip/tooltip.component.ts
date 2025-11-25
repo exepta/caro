@@ -1,5 +1,4 @@
 import { Component, Input, ChangeDetectionStrategy, signal } from '@angular/core';
-import { NgClass } from '@angular/common';
 
 type TooltipMode = 'hover' | 'click' | 'all';
 type TooltipPosition = 'top' | 'bottom' | 'left' | 'right';
@@ -8,7 +7,7 @@ type TooltipVariant = 'default' | 'success' | 'error' | 'warning' | 'info';
 @Component({
   selector: 'app-tooltip',
   standalone: true,
-  imports: [NgClass],
+  imports: [],
   templateUrl: './tooltip.component.html',
   styleUrls: ['./tooltip.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,

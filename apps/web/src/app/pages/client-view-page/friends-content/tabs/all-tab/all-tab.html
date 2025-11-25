@@ -11,7 +11,7 @@
         [style.background-color]="!friend.bannerUrl ? (friend.accentColor || '#2b2d31') : null"
       >
         @if (friend.bannerUrl) {
-          <img [src]="friend.bannerUrl" alt="" />
+          <img class="banner-img" [src]="friend.bannerUrl" alt="" />
           <div class="filter"></div>
         }
         <div class="fallback-color-back"></div>
