@@ -29,8 +29,14 @@
     "/api/friends/requests": {
       "$ref": "./api-friends.json#/paths/~1api~1friends~1requests"
     },
+    "/api/friends/requests/{id}": {
+      "$ref": "./api-friends.json#/paths/~1api~1friends~1requests~1{id}"
+    },
     "/api/friends/requests/{id}/accept": {
       "$ref": "./api-friends.json#/paths/~1api~1friends~1requests~1{id}~1accept"
+    },
+    "/api/friends/requests/{id}/decline": {
+      "$ref": "./api-friends.json#/paths/~1api~1friends~1requests~1{id}~1decline"
     },
     "/api/friends/requests/outgoing": {
       "$ref": "./api-friends.json#/paths/~1api~1friends~1requests~1outgoing"

@@ -82,8 +82,16 @@ export class FriendService {
     return this.friendApi.sendFriendRequest({ targetUserId }) as unknown as Observable<void>;
   }
 
+  cancelFriendRequest(friendshipId: string): Observable<void> {
+    return this.friendApi.cancelFriendRequest(friendshipId) as unknown as Observable<void>;
+  }
+
   acceptFriendRequest(friendshipId: string): Observable<void> {
     return this.friendApi.acceptFriendRequest(friendshipId) as unknown as Observable<void>;
+  }
+
+  declineFriendRequest(friendshipId: string): Observable<void> {
+    return this.friendApi.declineFriendRequest(friendshipId) as unknown as Observable<void>;
   }
 
   unfriend(friendId: string): Observable<void> {

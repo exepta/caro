@@ -11,96 +11,159 @@
 
     @if (incomingRequests()?.length) {
       <h4 class="section-title">Incoming requests</h4>
-      <!-- INCOMING -->
+
       <div class="list-content">
 
         @for (incoming of incomingRequests(); track incoming.friendshipId) {
-          <div class="friend-card incoming-card"
-               [style.background-color]="!incoming.bannerUrl ? (incoming.accentColor || '#2b2d31') : null">
+          <div class="hover-wrapper">
+            <div
+              class="friend-card"
+              [style.background-color]="!incoming.bannerUrl ? (incoming.accentColor || '#2b2d31') : null"
+            >
+              @if (incoming.bannerUrl) {
+                <img [src]="incoming.bannerUrl" alt="" />
+                <div class="filter"></div>
+              }
+              <div class="fallback-color-back"></div>
 
-            <!-- HOVER ACTION OVERLAY LEFT HALF -->
+              <div class="friend-content">
+                <div
+                  class="friend-avatar-box"
+                  [style.border-color]="incoming.accentColor || '#2b2d31'"
+                >
+                  @if (incoming.avatarUrl) {
+                    <img
+                      [src]="incoming.avatarUrl"
+                      [alt]="incoming.displayName || incoming.username"
+                    />
+                  } @else {
+                    <span class="avatar-placeholder">
+                      {{ (incoming.displayName ?? incoming.username ?? '')[0] | uppercase }}
+                    </span>
+                  }
+                </div>
+
+                <div class="friend-text">
+                  <h5>{{ incoming.displayName }}</h5>
+                  <span>&#64;{{ incoming.username }}</span>
+                </div>
+              </div>
+
+              <div class="date-info">
+                <span>{{ incoming.createdAt | date: 'MMM d, y' }}</span>
+              </div>
+            </div>
+
             <div class="hover-actions">
-              <button class="success" (click)="acceptRequest(incoming)"><fa-icon [icon]="faCheck"></fa-icon></button>
-              <button class="error" (click)="declineRequest(incoming)"><fa-icon [icon]="faXmark"></fa-icon></button>
+              <app-tooltip
+                text="Accept request"
+                mode="hover"
+                position="top"
+                variant="success"
+              >
+                <button
+                  class="btn success"
+                  (click)="acceptRequest(incoming)"
+                >
+                  <fa-icon [icon]="faCheck"></fa-icon>
+                </button>
+              </app-tooltip>
+
+              <app-tooltip
+                text="Block user"
+                mode="hover"
+                position="top"
+                variant="warning"
+              >
+                <button
+                  class="btn block"
+                  (click)="blockRequest(incoming)"
+                >
+                  <fa-icon [icon]="faBan"></fa-icon>
+                </button>
+              </app-tooltip>
+
+              <app-tooltip
+                text="Decline request"
+                mode="hover"
+                position="top"
+                variant="error"
+              >
+                <button
+                  class="btn error"
+                  (click)="declineRequest(incoming)"
+                >
+                  <fa-icon [icon]="faXmark"></fa-icon>
+                </button>
+              </app-tooltip>
             </div>
 
-            @if (incoming.bannerUrl) {
-              <img [src]="incoming.bannerUrl" alt="" />
-              <div class="filter"></div>
-            }
-            <div class="fallback-color-back"></div>
-
-            <div class="friend-content">
-              <div class="friend-avatar-box"
-                   [style.border-color]="incoming.accentColor || '#2b2d31'">
-                @if (incoming.avatarUrl) {
-                  <img [src]="incoming.avatarUrl"
-                       [alt]="incoming.displayName || incoming.username" />
-                }
-              </div>
-
-              <div class="friend-text">
-                <h5>{{ incoming.displayName }}</h5>
-                <span>&#64;{{ incoming.username }}</span>
-              </div>
-            </div>
-
-            <div class="date-info">
-              <span>{{ incoming.createdAt | date: 'MMM d, y' }}</span>
-            </div>
           </div>
         }
       </div>
     }
 
-    @if (!incomingRequests()?.length && !outgoingRequests()?.length) {
+    @if (incomingRequests()?.length !== 0 && outgoingRequests()?.length !== 0) {
       <div class="section-separator"></div>
     }
 
-    <!-- SEPARATOR -->
     @if (outgoingRequests()?.length) {
-    <h4 class="section-title">Outgoing requests</h4>
+      <h4 class="section-title">Outgoing requests</h4>
 
-    <!-- OUTGOING -->
-    <div class="list-content">
-
+      <div class="list-content">
         @for (outgoing of outgoingRequests(); track outgoing.friendshipId) {
-          <div
-            class="friend-card"
-            [style.background-color]="!outgoing.bannerUrl ? (outgoing.accentColor || '#2b2d31') : null"
-          >
-            @if (outgoing.bannerUrl) {
-              <img [src]="outgoing.bannerUrl" alt="" />
-              <div class="filter"></div>
-            }
-            <div class="fallback-color-back"></div>
 
-            <div class="friend-content">
-              <div
-                class="friend-avatar-box"
-                [style.border-color]="outgoing.accentColor || '#2b2d31'"
-              >
-                @if (outgoing.avatarUrl) {
-                  <img
-                    [src]="outgoing.avatarUrl"
-                    [alt]="outgoing.displayName || outgoing.username"
-                  />
-                }
+          <div class="hover-wrapper">
+            <div
+              class="friend-card"
+              [style.background-color]="!outgoing.bannerUrl ? (outgoing.accentColor || '#2b2d31') : null"
+            >
+              @if (outgoing.bannerUrl) {
+                <img [src]="outgoing.bannerUrl" alt="" />
+                <div class="filter"></div>
+              }
+              <div class="fallback-color-back"></div>
+
+              <div class="friend-content">
+                <div
+                  class="friend-avatar-box"
+                  [style.border-color]="outgoing.accentColor || '#2b2d31'"
+                >
+                  @if (outgoing.avatarUrl) {
+                    <img
+                      [src]="outgoing.avatarUrl"
+                      [alt]="outgoing.displayName || outgoing.username"
+                    />
+                  }
+                </div>
+
+                <div class="friend-text">
+                  <h5>{{ outgoing.displayName }}</h5>
+                  <span>&#64;{{ outgoing.username }}</span>
+                </div>
               </div>
 
-              <div class="friend-text">
-                <h5>{{ outgoing.displayName }}</h5>
-                <span>&#64;{{ outgoing.username }}</span>
+              <div class="date-info">
+                <span>{{ outgoing.createdAt | date: 'MMM d, y' }}</span>
               </div>
-
             </div>
 
-            <div class="date-info">
-              <span>{{ outgoing.createdAt | date: 'MMM d, y' }}</span>
+            <div class="hover-actions">
+              <app-tooltip
+                text="Cancel request"
+                mode="hover"
+                position="top"
+                variant="error"
+              >
+                <button class="btn error" (click)="cancelRequest(outgoing)">
+                  <fa-icon [icon]="faXmark"></fa-icon>
+                </button>
+              </app-tooltip>
             </div>
           </div>
+
         }
-    </div>
+      </div>
     }
   </div>
 </div>

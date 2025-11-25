@@ -49,12 +49,13 @@ public class CaroFriendshipService {
             CaroFriendship existing = existingOpt.get();
             switch (existing.getStatus()) {
                 case ACCEPTED -> throw new IllegalStateException("You are already friends with this user.");
-                case PENDING -> {
-                    throw new IllegalStateException("A friend request is already pending between you and this user.");
-                }
+                case PENDING -> throw new IllegalStateException("A friend request is already pending between you and this user.");
                 case BLOCKED -> throw new IllegalStateException("You cannot send a friend request to a user you have blocked or who has blocked you.");
                 case DECLINED -> {
-                    throw new IllegalStateException("A previous friend request was declined. You cannot send another request at this time.");
+                    existing.setStatus(FriendshipStatus.PENDING);
+                    existing.setRequester(requester);
+                    existing.setAddressee(addressee);
+                    return;
                 }
             }
         }
@@ -65,6 +66,21 @@ public class CaroFriendshipService {
         friendship.setStatus(FriendshipStatus.PENDING);
 
         friendshipRepository.save(friendship);
+    }
+
+    public void cancelRequest(UUID currentUserId, UUID friendshipId) {
+        CaroFriendship friendship = friendshipRepository.findById(friendshipId)
+                .orElseThrow(() -> new IllegalArgumentException("Friendship does not exist!"));
+
+        if (!friendship.getRequester().getId().equals(currentUserId)) {
+            throw new IllegalStateException("You cannot cancel a friend request you did not send.");
+        }
+
+        if (friendship.getStatus() != FriendshipStatus.PENDING) {
+            throw new IllegalStateException("Only pending friend requests can be cancelled.");
+        }
+
+        friendshipRepository.delete(friendship);
     }
 
     public void acceptRequest(UUID currentUserId, UUID friendshipId) {
@@ -85,6 +101,16 @@ public class CaroFriendshipService {
     public void declineRequest(UUID currentUserId, UUID friendshipId) {
         CaroFriendship friendship = friendshipRepository.findById(friendshipId)
                 .orElseThrow(() -> new IllegalArgumentException("Friendship does not exist!"));
+
+        if (!friendship.getAddressee().getId().equals(currentUserId)) {
+            throw new IllegalStateException("You cannot decline a friend request that is not addressed to you.");
+        }
+
+        if (friendship.getStatus() != FriendshipStatus.PENDING) {
+            throw new IllegalStateException("Only pending friend requests can be declined.");
+        }
+
+        friendship.setStatus(FriendshipStatus.DECLINED);
     }
 
     public void unfriend(UUID currentUserId, UUID friendId) {

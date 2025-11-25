@@ -37,6 +37,10 @@ export class UserService {
     });
   }
 
+  currentUser(): Observable<UserSettingsResponse> {
+    return this.userApi.getCurrentUser();
+  }
+
   clearUser(): void {
     this.userSettingState.set(null);
     this.errorState.set(null);

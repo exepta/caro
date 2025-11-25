@@ -29,6 +29,16 @@ public class FriendRestController {
         return ResponseEntity.ok().build();
     }
 
+    @DeleteMapping("/requests/{id}")
+    public ResponseEntity<Void> cancelFriendRequest(
+            @AuthenticationPrincipal String userId,
+            @PathVariable("id") UUID friendshipId
+    ) {
+        UUID currentUserId = UUID.fromString(userId);
+        friendshipService.cancelRequest(currentUserId, friendshipId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/requests/{id}/accept")
     public ResponseEntity<Void> acceptFriendRequest(
             @AuthenticationPrincipal String userId,
