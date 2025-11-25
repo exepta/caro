@@ -15,6 +15,7 @@ import org.tiltus.authbackend.rest.requests.UserSettingsRequest;
 import org.tiltus.authbackend.rest.response.UserSettingsResponse;
 import org.tiltus.authbackend.services.CaroUserService;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -358,5 +359,57 @@ class UserRestControllerTest {
 
         // assert
         assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void searchByUsername_shouldReturnUserSettingsList_whenQueryValid() {
+        // arrange
+        String query = "dev";
+
+        CaroUserProfile profile1 = mock(CaroUserProfile.class);
+        when(profile1.getDisplayName()).thenReturn("Dev One");
+        CaroUser user1 = mock(CaroUser.class);
+        when(user1.getProfile()).thenReturn(profile1);
+
+        CaroUserProfile profile2 = mock(CaroUserProfile.class);
+        when(profile2.getDisplayName()).thenReturn("Dev Two");
+        CaroUser user2 = mock(CaroUser.class);
+        when(user2.getProfile()).thenReturn(profile2);
+
+        List<CaroUser> users = List.of(user1, user2);
+        when(userRepository.findTop10ByUsernameIgnoreCaseContaining(query)).thenReturn(users);
+
+        // act
+        ResponseEntity<List<UserSettingsResponse>> response = controller.searchByUsername(query);
+
+        // assert
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody()).hasSize(2);
+        verify(userRepository).findTop10ByUsernameIgnoreCaseContaining(query);
+    }
+
+    @Test
+    void searchByUsername_shouldThrowBadRequest_whenQueryNull() {
+        // act
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> controller.searchByUsername(null)
+        );
+
+        // assert
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void searchByUsername_shouldThrowBadRequest_whenQueryBlank() {
+        // act
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> controller.searchByUsername("   ")
+        );
+
+        // assert
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 }

@@ -23,11 +23,26 @@
     "/api/user/username/{username}": {
       "$ref": "./api-user.json#/paths/~1api~1user~1username~1{username}"
     },
+    "/api/user/search": {
+      "$ref": "./api-user.json#/paths/~1api~1user~1search"
+    },
     "/api/friends/requests": {
       "$ref": "./api-friends.json#/paths/~1api~1friends~1requests"
     },
+    "/api/friends/requests/{id}": {
+      "$ref": "./api-friends.json#/paths/~1api~1friends~1requests~1{id}"
+    },
     "/api/friends/requests/{id}/accept": {
       "$ref": "./api-friends.json#/paths/~1api~1friends~1requests~1{id}~1accept"
+    },
+    "/api/friends/requests/{id}/decline": {
+      "$ref": "./api-friends.json#/paths/~1api~1friends~1requests~1{id}~1decline"
+    },
+    "/api/friends/requests/outgoing": {
+      "$ref": "./api-friends.json#/paths/~1api~1friends~1requests~1outgoing"
+    },
+    "/api/friends/requests/incoming": {
+      "$ref": "./api-friends.json#/paths/~1api~1friends~1requests~1incoming"
     },
     "/api/friends/{friendId}": {
       "$ref": "./api-friends.json#/paths/~1api~1friends~1{friendId}"
@@ -61,6 +76,15 @@
       },
       "FriendResponse": {
         "$ref": "./api-friends.json#/components/schemas/FriendResponse"
+      },
+      "FriendRequestResponse": {
+        "$ref": "./api-friends.json#/components/schemas/FriendRequestResponse"
+      },
+      "FriendshipStatus": {
+        "$ref": "./api-friends.json#/components/schemas/FriendshipStatus"
+      },
+      "FriendRequestDirection": {
+        "$ref": "./api-friends.json#/components/schemas/FriendRequestDirection"
       }
     }
   }

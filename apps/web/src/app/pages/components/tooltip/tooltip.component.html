@@ -1,0 +1,16 @@
+<div
+  class="tooltip-trigger"
+  (mouseenter)="onMouseEnter()"
+  (mouseleave)="onMouseLeave()"
+  (focusin)="onMouseEnter()"
+  (focusout)="onMouseLeave()"
+  (click)="onClick($event)"
+>
+  <ng-content></ng-content>
+
+  @if (visible() && text) {
+    <div class="tooltip-box tooltip-{{ position }} tooltip-{{ variant }}">
+      <span class="tooltip-text">{{ text }}</span>
+    </div>
+  }
+</div>

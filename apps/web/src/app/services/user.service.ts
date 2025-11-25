@@ -1,5 +1,6 @@
-import {computed, inject, Injectable, signal} from '@angular/core';
-import {UserInternalService, UserSettingsResponse} from '../api';
+import { computed, inject, Injectable, signal } from '@angular/core';
+import { Observable } from 'rxjs';
+import { UserInternalService, UserSettingsResponse } from '../api';
 
 @Injectable({
   providedIn: 'root',
@@ -36,6 +37,10 @@ export class UserService {
     });
   }
 
+  currentUser(): Observable<UserSettingsResponse> {
+    return this.userApi.getCurrentUser();
+  }
+
   clearUser(): void {
     this.userSettingState.set(null);
     this.errorState.set(null);
@@ -43,5 +48,17 @@ export class UserService {
 
   updateUser(user: UserSettingsResponse): void {
     this.userSettingState.set(user);
+  }
+
+  getUserById(id: string): Observable<UserSettingsResponse> {
+    return this.userApi.getUserById(id);
+  }
+
+  getUserByUsername(username: string): Observable<UserSettingsResponse> {
+    return this.userApi.getUserByUsername(username);
+  }
+
+  searchUsersByUsername(username: string): Observable<UserSettingsResponse[]> {
+    return this.userApi.searchUsersByUsername(username);
   }
 }

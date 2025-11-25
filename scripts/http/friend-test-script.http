@@ -9,8 +9,20 @@ Content-Type: application/json
 
 ### POST accept a friend request from another user
 ### This is the id filed of friendship
-@id = e976f12a-552a-41fa-8d9d-d0bc9cb06f1a
-POST http://localhost:8080/api/friends/requests/{{id}}/accept
+@cancelId = e976f12a-552a-41fa-8d9d-d0bc9cb06f1a
+POST http://localhost:8080/api/friends/requests/{{cancelId}}
+Authorization: Bearer {{refreshToken}}
+
+### POST accept a friend request from another user
+### This is the id filed of friendship
+@acceptId = e976f12a-552a-41fa-8d9d-d0bc9cb06f1a
+POST http://localhost:8080/api/friends/requests/{{acceptId}}/accept
+Authorization: Bearer {{refreshToken}}
+
+### POST decline a friend request from another user
+### This is the id filed of friendship
+@declineId = e976f12a-552a-41fa-8d9d-d0bc9cb06f1a
+POST http://localhost:8080/api/friends/requests/{{declineId}}/decline
 Authorization: Bearer {{refreshToken}}
 
 ### DELETE remove a friend
@@ -21,4 +33,12 @@ Authorization: Bearer {{refreshToken}}
 
 ### GET list of friends
 GET http://localhost:8080/api/friends
+Authorization: Bearer {{refreshToken}}
+
+### GET list of outgoing friend requests
+GET http://localhost:8080/api/friends/requests/outgoing
+Authorization: Bearer {{refreshToken}}
+
+### GET list of incoming friend requests
+GET http://localhost:8080/api/friends/requests/incoming
 Authorization: Bearer {{refreshToken}}

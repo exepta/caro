@@ -21,3 +21,7 @@ Authorization: Bearer {{refreshToken}}
 @username = test
 GET http://localhost:8080/api/user/username/{{username}}
 Authorization: Bearer {{refreshToken}}
+
+### GET request to search users by email
+GET http://localhost:8080/api/user/search?q=
+Authorization: Bearer {{refreshToken}}

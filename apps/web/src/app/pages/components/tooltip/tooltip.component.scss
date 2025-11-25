@@ -1,0 +1,217 @@
+@use '../../../styles/colors' as *;
+
+:host {
+  display: inline-block;
+}
+
+.tooltip-trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tooltip-box {
+  z-index: 10;
+  position: absolute;
+  max-width: 260px;
+  min-width: 100px;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  background: $background-black;
+  color: $text-decent;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  white-space: normal;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+
+  opacity: 0;
+  animation: tooltip-fade-in 130ms ease-out forwards;
+
+  &::after {
+    content: '';
+    position: absolute;
+    border-width: 6px;
+    border-style: solid;
+  }
+}
+
+.tooltip-text {
+  display: inline-block;
+}
+
+/* Positions relativ zum Button */
+
+.tooltip-top {
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%, -10px);
+
+  &::after {
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-color: $background-black transparent transparent transparent;
+  }
+}
+
+.tooltip-bottom {
+  top: 100%;
+  left: 50%;
+  transform: translate(-50%, 10px);
+
+  &::after {
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-color: transparent transparent $background-black transparent;
+  }
+}
+
+.tooltip-left {
+  right: 100%;
+  top: 50%;
+  transform: translate(-10px, -50%);
+
+  &::after {
+    top: 50%;
+    left: 100%;
+    transform: translateY(-50%);
+    border-color: transparent transparent transparent $background-black;
+  }
+}
+
+.tooltip-right {
+  left: 100%;
+  top: 50%;
+  transform: translate(10px, -50%);
+
+  &::after {
+    top: 50%;
+    right: 100%;
+    transform: translateY(-50%);
+    border-color: transparent $background-black transparent transparent;
+  }
+}
+
+/* Varianten – deine Version, nur übernommen */
+
+.tooltip-default {
+  background: $background-black;
+  color: $text-decent;
+
+  &::after {
+    border-color: transparent;
+  }
+
+  &.tooltip-top::after {
+    border-color: $background-black transparent transparent transparent;
+  }
+  &.tooltip-bottom::after {
+    border-color: transparent transparent $background-black transparent;
+  }
+  &.tooltip-left::after {
+    border-color: transparent transparent transparent $background-black;
+  }
+  &.tooltip-right::after {
+    border-color: transparent $background-black transparent transparent;
+  }
+}
+
+.tooltip-success {
+  background: rgba($success-color-darker, 0.18);
+  color: $text-decent;
+
+  &::after {
+    border-color: transparent;
+  }
+
+  &.tooltip-top::after {
+    border-color: rgba($success-color-darker, 0.18) transparent transparent transparent;
+  }
+  &.tooltip-bottom::after {
+    border-color: transparent transparent rgba($success-color-darker, 0.18) transparent;
+  }
+  &.tooltip-left::after {
+    border-color: transparent transparent transparent rgba($success-color-darker, 0.18);
+  }
+  &.tooltip-right::after {
+    border-color: transparent rgba($success-color-darker, 0.18) transparent transparent;
+  }
+}
+
+.tooltip-error {
+  background: rgba($error-color, 0.16);
+  color: $text-decent;
+
+  &::after {
+    border-color: transparent;
+  }
+
+  &.tooltip-top::after {
+    border-color: rgba($error-color, 0.16) transparent transparent transparent;
+  }
+  &.tooltip-bottom::after {
+    border-color: transparent transparent rgba($error-color, 0.16) transparent;
+  }
+  &.tooltip-left::after {
+    border-color: transparent transparent transparent rgba($error-color, 0.16);
+  }
+  &.tooltip-right::after {
+    border-color: transparent rgba($error-color, 0.16) transparent transparent;
+  }
+}
+
+.tooltip-warning {
+  background: rgba($warning-color, 0.16);
+  color: $text-decent;
+
+  &::after {
+    border-color: transparent;
+  }
+
+  &.tooltip-top::after {
+    border-color: rgba($warning-color, 0.16) transparent transparent transparent;
+  }
+  &.tooltip-bottom::after {
+    border-color: transparent transparent rgba($warning-color, 0.16) transparent;
+  }
+  &.tooltip-left::after {
+    border-color: transparent transparent transparent rgba($warning-color, 0.16);
+  }
+  &.tooltip-right::after {
+    border-color: transparent rgba($warning-color, 0.16) transparent transparent;
+  }
+}
+
+.tooltip-info {
+  background: rgba($info-color, 0.16);
+  color: $text-decent;
+
+  &::after {
+    border-color: transparent;
+  }
+
+  &.tooltip-top::after {
+    border-color: rgba($info-color, 0.16) transparent transparent transparent;
+  }
+  &.tooltip-bottom::after {
+    border-color: transparent transparent rgba($info-color, 0.16) transparent;
+  }
+  &.tooltip-left::after {
+    border-color: transparent transparent transparent rgba($info-color, 0.16);
+  }
+  &.tooltip-right::after {
+    border-color: transparent rgba($info-color, 0.16) transparent transparent;
+  }
+}
+
+@keyframes tooltip-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

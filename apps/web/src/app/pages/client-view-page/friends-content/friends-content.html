@@ -1,10 +1,138 @@
-<header>
+<header class="header">
   <span class="title">
     <fa-icon [icon]="faUser"></fa-icon>
     Friends
   </span>
-  <button class="header-btn">Online</button>
-  <button class="header-btn">All</button>
-  <button class="header-btn">Pending</button>
-  <button class="header-btn header-friend-btn">Add Friend <fa-icon [icon]="faPlus"></fa-icon></button>
+
+  <button
+    class="header-btn"
+    [class.active]="activeTab() === 'all'"
+    (click)="setTab('all')"
+  >
+    All
+  </button>
+
+  <button
+    class="header-btn"
+    [class.active]="activeTab() === 'pending'"
+    (click)="setTab('pending')"
+  >
+    Pending
+  </button>
+
+  <button
+    class="header-btn header-friend-btn"
+    (click)="openFriendAdd()"
+  >
+    Add Friend
+    <fa-icon [icon]="faPlus"></fa-icon>
+  </button>
 </header>
+
+<section class="main-content">
+  @if (activeTab() === 'all') {
+    <app-all-tab [friends]="friends" (friendAddClick)="openFriendAdd()"></app-all-tab>
+  } @else if (activeTab() === 'pending') {
+    <app-pending-tab
+      [outgoingRequests]="outgoingRequests"
+      [incomingRequests]="incomingRequests"
+      [friends]="friends"
+    >
+    </app-pending-tab>
+  }
+
+  <div class="activity-content">
+
+  </div>
+</section>
+
+@if (isFriendAddOpen) {
+  <div class="modal-backdrop" (click)="closeFriendAdd()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <header class="modal-header">
+        <h4>Friend Add</h4>
+      </header>
+
+      <section class="modal-body">
+        <p class="description">
+          You can search for a user to add them with their username.
+        </p>
+
+        <!-- Search + Results als ein Block -->
+        <div class="friend-search-wrapper">
+          <input
+            type="search"
+            class="normal-input-field friend-add-search"
+            placeholder="Search for a user..."
+            (input)="onFriendSearchInput($event)"
+          />
+
+          @if (searchResults()?.length) {
+            <div class="list-results animate-in">
+              @for (user of searchResults(); track user.id) {
+                <div class="friend-search-item">
+                  @if (user.profile?.bannerUrl) {
+                    <img
+                      class="friend-search-banner"
+                      [src]="user.profile?.bannerUrl"
+                      [alt]="user.profile?.displayName || user.username"
+                    />
+                  }
+                  <div class="friend-search-filter"></div>
+
+                  <div class="friend-search-content">
+                    <div class="friend-search-main">
+                      <div
+                        class="avatar"
+                        [style.border-color]="user.profile?.accentColor || '#2b2d31'"
+                      >
+                        @if (user.profile?.avatarUrl) {
+                          <img
+                            [src]="user.profile?.avatarUrl"
+                            [alt]="user.profile?.displayName || user.username"
+                          />
+                        } @else {
+                          <span class="avatar-placeholder">
+                            {{ ((user.profile?.displayName ?? user.username ?? '')[0] ?? '').toUpperCase() }}
+                          </span>
+                        }
+                      </div>
+
+                      <div class="text">
+                        <h5>{{ user.profile?.displayName || user.username }}</h5>
+                        <span>&#64;{{ user.username }}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      class="friend-request-btn"
+                      [ngClass]="{
+                      'friend-request-add': !isOutgoingPending(user) && !hasIncomingPending(user),
+                      'friend-request-revoke': isOutgoingPending(user),
+                      'friend-request-accept': hasIncomingPending(user) && !isOutgoingPending(user)
+                      }"
+                      (click)="onToggleFriendRequest(user)"
+                    >
+                      {{ hasIncomingPending(user)
+                      ? 'Accept'
+                      : (isOutgoingPending(user) ? 'Revoke' : 'Add') }}
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </section>
+
+      <footer class="modal-footer">
+        <button type="button" class="normal-btn" (click)="closeFriendAdd()">
+          Close
+        </button>
+      </footer>
+    </div>
+  </div>
+}
+
+

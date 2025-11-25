@@ -1,0 +1,69 @@
+<div class="content">
+  <div class="search-container">
+    <input type="search" class="search" placeholder="Search friends..." />
+  </div>
+
+  @if (friends()?.length !== 0) {
+  <div class="list-content">
+    @for (friend of friends(); track friend.id) {
+      <div class="hover-wrapper">
+        <div
+          class="friend-card"
+          [style.background-color]="!friend.bannerUrl ? (friend.accentColor || '#2b2d31') : null"
+        >
+          @if (friend.bannerUrl) {
+            <img class="banner-img" [src]="friend.bannerUrl" alt="" />
+            <div class="filter"></div>
+          }
+          <div class="fallback-color-back"></div>
+
+          <div class="friend-content">
+            <div
+              class="friend-avatar-box"
+              [style.border-color]="friend.accentColor || '#2b2d31'"
+            >
+              @if (friend.avatarUrl) {
+                <img
+                  [src]="friend.avatarUrl"
+                  [alt]="friend.displayName"
+                />
+              }
+            </div>
+
+            <div class="friend-text">
+              <h5>{{ friend.displayName }}</h5>
+              <span>&#64;{{ friend.username }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hover-actions">
+          <app-tooltip
+            text="Call friend"
+            mode="hover"
+            position="right"
+            variant="default"
+          >
+            <button class="btn success">
+              <fa-icon [icon]="faPhone"></fa-icon>
+            </button>
+          </app-tooltip>
+
+          <app-tooltip
+            text="Send message"
+            mode="hover"
+            position="right"
+            variant="default"
+          >
+            <button class="btn">
+              <fa-icon [icon]="faComment"></fa-icon>
+            </button>
+          </app-tooltip>
+        </div>
+      </div>
+    }
+  </div>
+  } @else {
+    <p class="nothing-happens">Let's find friends! Use the button located in the header! <span (click)="onFriendAddClick()">Add Friends</span></p>
+  }
+</div>

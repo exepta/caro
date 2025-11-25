@@ -9,6 +9,7 @@ import org.tiltus.authbackend.model.CaroFriendship;
 import org.tiltus.authbackend.model.CaroUser;
 import org.tiltus.authbackend.repositories.CaroFriendshipRepository;
 import org.tiltus.authbackend.repositories.CaroUserRepository;
+import org.tiltus.authbackend.rest.response.FriendRequestResponse;
 import org.tiltus.authbackend.rest.response.FriendResponse;
 
 import java.util.List;
@@ -190,7 +191,7 @@ class CaroFriendshipServiceTest {
     }
 
     @Test
-    void sendRequest_shouldThrow_whenExistingFriendshipDeclined() {
+    void sendRequest_shouldReuseExistingDeclinedFriendship_whenStatusDeclined() {
         UUID requesterId = UUID.randomUUID();
         UUID targetId = UUID.randomUUID();
 
@@ -207,12 +208,11 @@ class CaroFriendshipServiceTest {
         when(friendshipRepository.findBetween(requesterId, targetId))
                 .thenReturn(Optional.of(existing));
 
-        IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
-                () -> service.sendRequest(requesterId, targetId)
-        );
+        service.sendRequest(requesterId, targetId);
 
-        assertThat(ex.getMessage()).contains("declined");
+        verify(existing).setStatus(FriendshipStatus.PENDING);
+        verify(existing).setRequester(requester);
+        verify(existing).setAddressee(addressee);
         verify(friendshipRepository, never()).save(any());
     }
 
@@ -241,6 +241,85 @@ class CaroFriendshipServiceTest {
         assertThat(saved.getRequester()).isEqualTo(requester);
         assertThat(saved.getAddressee()).isEqualTo(addressee);
         assertThat(saved.getStatus()).isEqualTo(FriendshipStatus.PENDING);
+    }
+
+    // -------- cancelRequest --------
+
+    @Test
+    void cancelRequest_shouldThrow_whenFriendshipNotFound() {
+        UUID currentUserId = UUID.randomUUID();
+        UUID friendshipId = UUID.randomUUID();
+
+        when(friendshipRepository.findById(friendshipId)).thenReturn(Optional.empty());
+
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.cancelRequest(currentUserId, friendshipId)
+        );
+
+        assertThat(ex.getMessage()).contains("does not exist");
+        verify(friendshipRepository, never()).delete(any());
+    }
+
+    @Test
+    void cancelRequest_shouldThrow_whenCurrentUserIsNotRequester() {
+        UUID currentUserId = UUID.randomUUID();
+        UUID friendshipId = UUID.randomUUID();
+
+        CaroUser requester = mock(CaroUser.class);
+        when(requester.getId()).thenReturn(UUID.randomUUID()); // != currentUserId
+
+        CaroFriendship friendship = mock(CaroFriendship.class);
+        when(friendship.getRequester()).thenReturn(requester);
+        when(friendshipRepository.findById(friendshipId)).thenReturn(Optional.of(friendship));
+
+        IllegalStateException ex = assertThrows(
+                IllegalStateException.class,
+                () -> service.cancelRequest(currentUserId, friendshipId)
+        );
+
+        assertThat(ex.getMessage()).contains("cannot cancel a friend request you did not send");
+        verify(friendshipRepository, never()).delete(any());
+    }
+
+    @Test
+    void cancelRequest_shouldThrow_whenFriendshipNotPending() {
+        UUID currentUserId = UUID.randomUUID();
+        UUID friendshipId = UUID.randomUUID();
+
+        CaroUser requester = mock(CaroUser.class);
+        when(requester.getId()).thenReturn(currentUserId);
+
+        CaroFriendship friendship = mock(CaroFriendship.class);
+        when(friendship.getRequester()).thenReturn(requester);
+        when(friendship.getStatus()).thenReturn(FriendshipStatus.ACCEPTED);
+        when(friendshipRepository.findById(friendshipId)).thenReturn(Optional.of(friendship));
+
+        IllegalStateException ex = assertThrows(
+                IllegalStateException.class,
+                () -> service.cancelRequest(currentUserId, friendshipId)
+        );
+
+        assertThat(ex.getMessage()).contains("Only pending friend requests can be cancelled");
+        verify(friendshipRepository, never()).delete(any());
+    }
+
+    @Test
+    void cancelRequest_shouldDeleteFriendship_whenAllOk() {
+        UUID currentUserId = UUID.randomUUID();
+        UUID friendshipId = UUID.randomUUID();
+
+        CaroUser requester = mock(CaroUser.class);
+        when(requester.getId()).thenReturn(currentUserId);
+
+        CaroFriendship friendship = mock(CaroFriendship.class);
+        when(friendship.getRequester()).thenReturn(requester);
+        when(friendship.getStatus()).thenReturn(FriendshipStatus.PENDING);
+        when(friendshipRepository.findById(friendshipId)).thenReturn(Optional.of(friendship));
+
+        service.cancelRequest(currentUserId, friendshipId);
+
+        verify(friendshipRepository).delete(friendship);
     }
 
     // -------- acceptRequest --------
@@ -319,6 +398,84 @@ class CaroFriendshipServiceTest {
         service.acceptRequest(currentUserId, friendshipId);
 
         verify(friendship).setStatus(FriendshipStatus.ACCEPTED);
+    }
+
+    // -------- declineRequest --------
+
+    @Test
+    void declineRequest_shouldThrow_whenFriendshipNotFound() {
+        UUID currentUserId = UUID.randomUUID();
+        UUID friendshipId = UUID.randomUUID();
+
+        when(friendshipRepository.findById(friendshipId)).thenReturn(Optional.empty());
+
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.declineRequest(currentUserId, friendshipId)
+        );
+
+        assertThat(ex.getMessage()).contains("does not exist");
+    }
+
+    @Test
+    void declineRequest_shouldThrow_whenCurrentUserIsNotAddressee() {
+        UUID currentUserId = UUID.randomUUID();
+        UUID friendshipId = UUID.randomUUID();
+
+        CaroUser addressee = mock(CaroUser.class);
+        when(addressee.getId()).thenReturn(UUID.randomUUID()); // != currentUserId
+
+        CaroFriendship friendship = mock(CaroFriendship.class);
+        when(friendship.getAddressee()).thenReturn(addressee);
+        when(friendshipRepository.findById(friendshipId)).thenReturn(Optional.of(friendship));
+
+        IllegalStateException ex = assertThrows(
+                IllegalStateException.class,
+                () -> service.declineRequest(currentUserId, friendshipId)
+        );
+
+        assertThat(ex.getMessage()).contains("cannot decline a friend request that is not addressed to you");
+        verify(friendship, never()).setStatus(any());
+    }
+
+    @Test
+    void declineRequest_shouldThrow_whenFriendshipNotPending() {
+        UUID currentUserId = UUID.randomUUID();
+        UUID friendshipId = UUID.randomUUID();
+
+        CaroUser addressee = mock(CaroUser.class);
+        when(addressee.getId()).thenReturn(currentUserId);
+
+        CaroFriendship friendship = mock(CaroFriendship.class);
+        when(friendship.getAddressee()).thenReturn(addressee);
+        when(friendship.getStatus()).thenReturn(FriendshipStatus.ACCEPTED);
+        when(friendshipRepository.findById(friendshipId)).thenReturn(Optional.of(friendship));
+
+        IllegalStateException ex = assertThrows(
+                IllegalStateException.class,
+                () -> service.declineRequest(currentUserId, friendshipId)
+        );
+
+        assertThat(ex.getMessage()).contains("Only pending friend requests can be declined");
+        verify(friendship, never()).setStatus(any());
+    }
+
+    @Test
+    void declineRequest_shouldSetStatusDeclined_whenAllOk() {
+        UUID currentUserId = UUID.randomUUID();
+        UUID friendshipId = UUID.randomUUID();
+
+        CaroUser addressee = mock(CaroUser.class);
+        when(addressee.getId()).thenReturn(currentUserId);
+
+        CaroFriendship friendship = mock(CaroFriendship.class);
+        when(friendship.getAddressee()).thenReturn(addressee);
+        when(friendship.getStatus()).thenReturn(FriendshipStatus.PENDING);
+        when(friendshipRepository.findById(friendshipId)).thenReturn(Optional.of(friendship));
+
+        service.declineRequest(currentUserId, friendshipId);
+
+        verify(friendship).setStatus(FriendshipStatus.DECLINED);
     }
 
     // -------- unfriend --------
@@ -407,6 +564,7 @@ class CaroFriendshipServiceTest {
         // Friendship 2: friend2 = requester, user = addressee
         CaroFriendship f2 = mock(CaroFriendship.class);
         when(f2.getRequester()).thenReturn(friend2);
+        // addressee ist implizit user in der Query
 
         when(friendshipRepository.findAcceptedForUser(userId))
                 .thenReturn(List.of(f1, f2));
@@ -429,5 +587,45 @@ class CaroFriendshipServiceTest {
         verify(friendshipRepository).findAcceptedForUser(userId);
     }
 
-}
+    // -------- getOutgoingRequests --------
 
+    @Test
+    void getOutgoingRequests_shouldReturnResponsesForPendingFriendships() {
+        UUID userId = UUID.randomUUID();
+
+        CaroFriendship f1 = mock(CaroFriendship.class);
+        CaroFriendship f2 = mock(CaroFriendship.class);
+        when(f1.getAddressee()).thenReturn(new CaroUser());
+        when(f2.getAddressee()).thenReturn(new CaroUser());
+
+        when(friendshipRepository.findByRequester_IdAndStatus(userId, FriendshipStatus.PENDING))
+                .thenReturn(List.of(f1, f2));
+
+        List<FriendRequestResponse> result = service.getOutgoingRequests(userId);
+
+        // Wir wissen nicht genau, wie FriendRequestResponse.outgoing baut,
+        // aber wir können sicherstellen, dass die Anzahl passt und das Repo aufgerufen wurde.
+        assertThat(result).hasSize(2);
+        verify(friendshipRepository).findByRequester_IdAndStatus(userId, FriendshipStatus.PENDING);
+    }
+
+    // -------- getIncomingRequests --------
+
+    @Test
+    void getIncomingRequests_shouldReturnResponsesForPendingFriendships() {
+        UUID userId = UUID.randomUUID();
+
+        CaroFriendship f1 = mock(CaroFriendship.class);
+        CaroFriendship f2 = mock(CaroFriendship.class);
+        when(f1.getRequester()).thenReturn(new CaroUser());
+        when(f2.getRequester()).thenReturn(new CaroUser());
+
+        when(friendshipRepository.findByAddressee_IdAndStatus(userId, FriendshipStatus.PENDING))
+                .thenReturn(List.of(f1, f2));
+
+        List<FriendRequestResponse> result = service.getIncomingRequests(userId);
+
+        assertThat(result).hasSize(2);
+        verify(friendshipRepository).findByAddressee_IdAndStatus(userId, FriendshipStatus.PENDING);
+    }
+}

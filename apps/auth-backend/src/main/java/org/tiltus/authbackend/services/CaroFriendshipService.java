@@ -8,6 +8,7 @@ import org.tiltus.authbackend.model.CaroFriendship;
 import org.tiltus.authbackend.model.CaroUser;
 import org.tiltus.authbackend.repositories.CaroFriendshipRepository;
 import org.tiltus.authbackend.repositories.CaroUserRepository;
+import org.tiltus.authbackend.rest.response.FriendRequestResponse;
 import org.tiltus.authbackend.rest.response.FriendResponse;
 
 import java.util.List;
@@ -48,12 +49,13 @@ public class CaroFriendshipService {
             CaroFriendship existing = existingOpt.get();
             switch (existing.getStatus()) {
                 case ACCEPTED -> throw new IllegalStateException("You are already friends with this user.");
-                case PENDING -> {
-                    throw new IllegalStateException("A friend request is already pending between you and this user.");
-                }
+                case PENDING -> throw new IllegalStateException("A friend request is already pending between you and this user.");
                 case BLOCKED -> throw new IllegalStateException("You cannot send a friend request to a user you have blocked or who has blocked you.");
                 case DECLINED -> {
-                    throw new IllegalStateException("A previous friend request was declined. You cannot send another request at this time.");
+                    existing.setStatus(FriendshipStatus.PENDING);
+                    existing.setRequester(requester);
+                    existing.setAddressee(addressee);
+                    return;
                 }
             }
         }
@@ -64,6 +66,21 @@ public class CaroFriendshipService {
         friendship.setStatus(FriendshipStatus.PENDING);
 
         friendshipRepository.save(friendship);
+    }
+
+    public void cancelRequest(UUID currentUserId, UUID friendshipId) {
+        CaroFriendship friendship = friendshipRepository.findById(friendshipId)
+                .orElseThrow(() -> new IllegalArgumentException("Friendship does not exist!"));
+
+        if (!friendship.getRequester().getId().equals(currentUserId)) {
+            throw new IllegalStateException("You cannot cancel a friend request you did not send.");
+        }
+
+        if (friendship.getStatus() != FriendshipStatus.PENDING) {
+            throw new IllegalStateException("Only pending friend requests can be cancelled.");
+        }
+
+        friendshipRepository.delete(friendship);
     }
 
     public void acceptRequest(UUID currentUserId, UUID friendshipId) {
@@ -79,6 +96,21 @@ public class CaroFriendshipService {
         }
 
         friendship.setStatus(FriendshipStatus.ACCEPTED);
+    }
+
+    public void declineRequest(UUID currentUserId, UUID friendshipId) {
+        CaroFriendship friendship = friendshipRepository.findById(friendshipId)
+                .orElseThrow(() -> new IllegalArgumentException("Friendship does not exist!"));
+
+        if (!friendship.getAddressee().getId().equals(currentUserId)) {
+            throw new IllegalStateException("You cannot decline a friend request that is not addressed to you.");
+        }
+
+        if (friendship.getStatus() != FriendshipStatus.PENDING) {
+            throw new IllegalStateException("Only pending friend requests can be declined.");
+        }
+
+        friendship.setStatus(FriendshipStatus.DECLINED);
     }
 
     public void unfriend(UUID currentUserId, UUID friendId) {
@@ -109,6 +141,32 @@ public class CaroFriendshipService {
                             : f.getRequester();
 
                     return FriendResponse.fromUser(friendUser);
+                })
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<FriendRequestResponse> getOutgoingRequests(UUID userId) {
+        List<CaroFriendship> friendships =
+                friendshipRepository.findByRequester_IdAndStatus(userId, FriendshipStatus.PENDING);
+
+        return friendships.stream()
+                .map(f -> {
+                    CaroUser addressee = f.getAddressee();
+                    return FriendRequestResponse.outgoing(f, addressee);
+                })
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<FriendRequestResponse> getIncomingRequests(UUID userId) {
+        List<CaroFriendship> friendships =
+                friendshipRepository.findByAddressee_IdAndStatus(userId, FriendshipStatus.PENDING);
+
+        return friendships.stream()
+                .map(f -> {
+                    CaroUser requester = f.getRequester();
+                    return FriendRequestResponse.incoming(f, requester);
                 })
                 .toList();
     }
