@@ -13,7 +13,10 @@ describe('UserService', () => {
   } as UserSettingsResponse;
 
   const userApiMock = {
-    getCurrentUser: jest.fn(),
+      getCurrentUser: jest.fn(),
+      getUserById: jest.fn(),
+      getUserByUsername: jest.fn(),
+      searchUsersByUsername: jest.fn(),
   };
 
   beforeEach(() => {
@@ -83,5 +86,68 @@ describe('UserService', () => {
 
     expect(service.user()).toEqual(mockUser);
     expect(service.isLoggedIn()).toBe(true);
+  });
+
+  it('currentUser should delegate to userApi.getCurrentUser()', (done) => {
+    userApiMock.getCurrentUser.mockReturnValue(of(mockUser));
+
+    service.currentUser().subscribe((user) => {
+      expect(userApiMock.getCurrentUser).toHaveBeenCalledTimes(1);
+      expect(user).toEqual(mockUser);
+      done();
+    });
+  });
+
+  it('getUserById should delegate to userApi.getUserById()', (done) => {
+    const id = 'abc-123';
+    const byIdUser: UserSettingsResponse = {
+      id,
+      username: 'ByIdUser',
+      email: 'byid@example.com',
+    } as UserSettingsResponse;
+
+    userApiMock.getUserById.mockReturnValue(of(byIdUser));
+
+    service.getUserById(id).subscribe((user) => {
+      expect(userApiMock.getUserById).toHaveBeenCalledTimes(1);
+      expect(userApiMock.getUserById).toHaveBeenCalledWith(id);
+      expect(user).toEqual(byIdUser);
+      done();
+    });
+  });
+
+  it('getUserByUsername should delegate to userApi.getUserByUsername()', (done) => {
+    const username = 'someone';
+    const byNameUser: UserSettingsResponse = {
+      id: 'u-1',
+      username,
+      email: 'name@example.com',
+    } as UserSettingsResponse;
+
+    userApiMock.getUserByUsername.mockReturnValue(of(byNameUser));
+
+    service.getUserByUsername(username).subscribe((user) => {
+      expect(userApiMock.getUserByUsername).toHaveBeenCalledTimes(1);
+      expect(userApiMock.getUserByUsername).toHaveBeenCalledWith(username);
+      expect(user).toEqual(byNameUser);
+      done();
+    });
+  });
+
+  it('searchUsersByUsername should delegate to userApi.searchUsersByUsername()', (done) => {
+    const term = 'test';
+    const list: UserSettingsResponse[] = [
+      { id: '1', username: 'test1' } as UserSettingsResponse,
+      { id: '2', username: 'test2' } as UserSettingsResponse,
+    ];
+
+    userApiMock.searchUsersByUsername.mockReturnValue(of(list));
+
+    service.searchUsersByUsername(term).subscribe((users) => {
+      expect(userApiMock.searchUsersByUsername).toHaveBeenCalledTimes(1);
+      expect(userApiMock.searchUsersByUsername).toHaveBeenCalledWith(term);
+      expect(users).toEqual(list);
+      done();
+    });
   });
 });
