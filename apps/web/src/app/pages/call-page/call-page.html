@@ -1,99 +1,91 @@
-<div class="call-page">
+<app-side-bar
+  [activeSection]="currentSection()"
+  (settingsClick)="openSettings()"
+  (sectionChange)="onSectionChange($event)"
+></app-side-bar>
+
+<div class="call-window">
   @if (error(); as e) {
-    <p class="error">{{ e }}</p>
-  } @else {
-
-    <!-- Status -->
-    <div class="status">
-      @if (connecting()) {
-        <span class="status-text connecting">Connecting…</span>
-      } @else {
-        <span class="status-text in-call">In Call</span>
-      }
+    <div class="user-display">
+      <p class="error">{{ e }}</p>
     </div>
-
-    <!-- Teilnehmer -->
-    <div class="participants">
-
-      <!-- Du -->
+  } @else {
+    <div class="user-display">
       @if (localUser(); as me) {
         <div
-          class="user-card self"
-          [style.--accent-color]="me.profile?.accentColor || '#5865f2'"
+          class="user-avatar-card"
+          [class.speaking]="isLocalSpeaking()"
+          [style.border-color]="me.profile?.accentColor || '#2c2f3a'"
         >
-          <div class="avatar" [style.border-color]="me.profile?.accentColor || '#5865f2'">
-            @if (me.profile?.avatarUrl) {
-              <img [src]="me.profile?.avatarUrl" [alt]="me.profile?.displayName || me.username" />
-            } @else {
-              <span>{{ (me.profile?.displayName || me.username || '?')[0] }}</span>
-            }
-          </div>
-
-          <div class="info">
-            <div class="name">{{ me.profile?.displayName || me.username }}</div>
-            <div class="tag">&#64;{{ me.username }}</div>
-            <div class="label-you">You</div>
-          </div>
+          @if (me.profile?.avatarUrl) {
+            <img [src]="me.profile?.avatarUrl" [alt]="me.profile?.displayName || me.username" />
+          } @else {
+            <span>{{ (me.profile?.displayName || me.username || '?')[0] }}</span>
+          }
         </div>
       }
 
-      <!-- Remote -->
       @if (remoteUser(); as other) {
         <div
-          class="user-card remote"
-          [style.--accent-color]="other.profile?.accentColor || '#57f287'"
+          class="user-avatar-card"
+          [class.speaking]="isRemoteSpeaking()"
+          [style.border-color]="other.profile?.accentColor || '#2c2f3a'"
         >
-          <div class="avatar" [style.border-color]="other.profile?.accentColor || '#57f287'">
-            @if (other.profile?.avatarUrl) {
-              <img [src]="other.profile?.avatarUrl" [alt]="other.profile?.displayName || other.username" />
-            } @else {
-              <span>{{ (other.profile?.displayName || other.username || '?')[0] }}</span>
+          @if (other.profile?.avatarUrl) {
+            <img [src]="other.profile?.avatarUrl" [alt]="other.profile?.displayName || other.username" />
+          } @else {
+            <span>{{ (other.profile?.displayName || other.username || '?')[0] }}</span>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="call-tool-bar">
+      <div class="tool-bar">
+        <audio #remoteAudio autoplay></audio>
+
+        <div class="btn-con">
+          <button class="btn mute" type="button" (click)="toggleMute()">
+            <fa-icon [icon]="isMuted() ? faMicrophoneSlash : faMicrophone"></fa-icon>
+          </button>
+
+          <div class="volume-control">
+            <button
+              type="button"
+              class="btn volume-toggle"
+              (click)="toggleVolumeSlider()"
+            >
+              <fa-icon [icon]="volumeIcon()"></fa-icon>
+            </button>
+
+            @if (showVolumeSlider()) {
+              <div class="volume-slider">
+                <div class="volume-slider-inner">
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    [value]="remoteVolume()"
+                    (input)="onVolumeChange($event)"
+                    [style.--volume]="(remoteVolume() * 100) + '%'"
+                  />
+                </div>
+              </div>
             }
           </div>
 
-          <div class="info">
-            <div class="name">{{ other.profile?.displayName || other.username }}</div>
-            <div class="tag">&#64;{{ other.username }}</div>
-            <div class="label-remote">Remote</div>
-          </div>
+          <button class="btn hangup" type="button" (click)="hangup()">
+            <fa-icon [icon]="faPhoneSlash"></fa-icon>
+          </button>
         </div>
-      }
 
-    </div>
-
-    <!-- Audio-Element -->
-    <div class="audio-preview">
-      <div class="audio-box">
-        <p class="label">Remote audio</p>
-        <audio #remoteAudio autoplay></audio>
-
-        <!-- Lautstärke-Slider zum Testen -->
-        <div class="volume-control">
-          <label>
-            Volume
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              [value]="remoteVolume()"
-              (input)="onVolumeChange($event)"
-            />
-          </label>
-        </div>
+        <fa-icon
+          [icon]="faWifi"
+          class="wifi-icon"
+          [class.bad]="connecting()"
+        ></fa-icon>
       </div>
     </div>
-
-    <!-- Controls -->
-    <div class="controls">
-      <button class="btn mute" type="button" (click)="toggleMute()">
-        {{ isMuted() ? 'Unmute mic' : 'Mute mic' }}
-      </button>
-
-      <button class="btn hangup" type="button" (click)="hangup()">
-        Hang up
-      </button>
-    </div>
-
   }
 </div>

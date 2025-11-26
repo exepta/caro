@@ -4,6 +4,7 @@ import {
   OnDestroy,
   OnInit,
   ViewChild,
+  computed,
   inject,
   signal,
 } from '@angular/core';
@@ -17,11 +18,23 @@ import {
 } from '../../services/call.service';
 import { UserService } from '../../services/user.service';
 import { UserSettingsResponse } from '../../api';
+import { SideBar, SideBarSection } from '../components/side-bar/side-bar';
+import { FaIconComponent } from '@fortawesome/angular-fontawesome';
+import {
+  faMicrophone,
+  faMicrophoneSlash,
+  faPhoneSlash,
+  faVolumeOff,
+  faVolumeXmark,
+  faVolumeLow,
+  faVolumeHigh,
+  faWifi,
+} from '@fortawesome/free-solid-svg-icons';
 
 @Component({
   selector: 'app-call-page',
   standalone: true,
-  imports: [],
+  imports: [SideBar, FaIconComponent],
   templateUrl: './call-page.html',
   styleUrl: './call-page.scss',
 })
@@ -50,6 +63,8 @@ export class CallPage implements OnInit, OnDestroy {
   isMuted = signal(false);
   remoteVolume = signal(1);
 
+  showVolumeSlider = signal(false);
+
   private callId: string | null = null;
   private peerId: string | null = null;
   private isCaller = false;
@@ -60,6 +75,27 @@ export class CallPage implements OnInit, OnDestroy {
   private unregisterHangup?: () => void;
 
   private offerHandled = false;
+
+  private audioCtx: AudioContext | null = null;
+  private localAnalyzer: AnalyserNode | null = null;
+  private remoteAnalyzer: AnalyserNode | null = null;
+  private localDataArray?: Uint8Array;
+  private remoteDataArray?: Uint8Array;
+  private levelRafId: number | null = null;
+
+  currentSection = signal<SideBarSection>('friends');
+
+  volumeIcon = computed(() => {
+    const v = this.remoteVolume();
+    if (v === 0) return this.faVolumeXmark;
+    if (v <= 0.33) return this.faVolumeOff;
+    if (v <= 0.66) return this.faVolumeLow;
+    return this.faVolumeHigh;
+  });
+
+  openSettings() {
+    void this.router.navigateByUrl('/settings');
+  }
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
@@ -116,11 +152,15 @@ export class CallPage implements OnInit, OnDestroy {
       void this.router.navigate(['/']);
     });
 
-    this.initPeerConnection(this.isCaller, this.peerId).catch(err => {
+    this.initPeerConnection(this.isCaller, this.peerId).catch((err) => {
       console.error('Error in initPeerConnection', err);
       this.error.set('Failed to setup WebRTC');
       this.connecting.set(false);
     });
+  }
+
+  onSectionChange(section: SideBarSection) {
+    this.currentSection.set(section);
   }
 
   private async initPeerConnection(isCaller: boolean, peerId: string | null) {
@@ -152,8 +192,11 @@ export class CallPage implements OnInit, OnDestroy {
     };
 
     pc.ontrack = (event) => {
-      console.log('[CallPage] ontrack, remote tracks:', event.streams[0].getTracks().length);
-      event.streams[0].getTracks().forEach(track => {
+      console.log(
+        '[CallPage] ontrack, remote tracks:',
+        event.streams[0].getTracks().length,
+      );
+      event.streams[0].getTracks().forEach((track) => {
         console.log(
           '[CallPage] remote track kind=' + track.kind + ' muted=' + track.muted,
           track.getSettings ? track.getSettings() : {},
@@ -169,10 +212,12 @@ export class CallPage implements OnInit, OnDestroy {
       if (el) {
         el.srcObject = this.remoteStream;
         el.volume = this.remoteVolume();
-        el.play().catch(err => {
+        el.play().catch((err) => {
           console.warn('[CallPage] remote audio play() failed', err);
         });
       }
+
+      this.setupRemoteLevelMeter();
 
       this.connecting.set(false);
     };
@@ -188,6 +233,8 @@ export class CallPage implements OnInit, OnDestroy {
         this.connecting.set(false);
         return;
       }
+
+      this.setupLocalLevelMeter();
 
       console.log('[CallPage] creating offer as caller');
       const offer = await pc.createOffer();
@@ -209,10 +256,11 @@ export class CallPage implements OnInit, OnDestroy {
     }
 
     const existingTrackIds = new Set(
-      pc.getSenders()
-        .map(s => s.track)
+      pc
+        .getSenders()
+        .map((s) => s.track)
         .filter((t): t is MediaStreamTrack => !!t)
-        .map(t => t.id),
+        .map((t) => t.id),
     );
 
     this.localStream.getAudioTracks().forEach((track, idx) => {
@@ -229,6 +277,89 @@ export class CallPage implements OnInit, OnDestroy {
     });
   }
 
+  private ensureAudioContext() {
+    if (!this.audioCtx) {
+      this.audioCtx = new (window.AudioContext ||
+        (window as any).webkitAudioContext)();
+    }
+  }
+
+  private setupLocalLevelMeter() {
+    if (!this.localStream) return;
+    if (this.localAnalyzer) return;
+
+    this.ensureAudioContext();
+    if (!this.audioCtx) return;
+
+    const source = this.audioCtx.createMediaStreamSource(this.localStream);
+    this.localAnalyzer = this.audioCtx.createAnalyser();
+    this.localAnalyzer.fftSize = 256;
+    this.localDataArray = new Uint8Array(this.localAnalyzer.frequencyBinCount);
+    source.connect(this.localAnalyzer);
+
+    this.startLevelLoop();
+  }
+
+  private setupRemoteLevelMeter() {
+    if (!this.remoteStream) return;
+    if (this.remoteAnalyzer) return;
+
+    this.ensureAudioContext();
+    if (!this.audioCtx) return;
+
+    const source = this.audioCtx.createMediaStreamSource(this.remoteStream);
+    this.remoteAnalyzer = this.audioCtx.createAnalyser();
+    this.remoteAnalyzer.fftSize = 256;
+    this.remoteDataArray = new Uint8Array(this.remoteAnalyzer.frequencyBinCount);
+    source.connect(this.remoteAnalyzer);
+
+    this.startLevelLoop();
+  }
+
+  private startLevelLoop() {
+    if (this.levelRafId !== null) return;
+
+    const loop = () => {
+      this.levelRafId = requestAnimationFrame(loop);
+
+      if (this.localAnalyzer && this.localDataArray) {
+        // TS2345 fix: force to the signature type
+        this.localAnalyzer.getByteTimeDomainData(
+          this.localDataArray as any,
+        );
+        const level = this.computeLevel(this.localDataArray);
+        this.isLocalSpeaking.set(!this.isMuted() && level > 0.005);
+      }
+
+      if (this.remoteAnalyzer && this.remoteDataArray) {
+        // TS2345 fix: force to the signature type
+        this.remoteAnalyzer.getByteTimeDomainData(
+          this.remoteDataArray as any,
+        );
+        const level = this.computeLevel(this.remoteDataArray);
+        this.isRemoteSpeaking.set(level > 0.005);
+      }
+    };
+
+    this.levelRafId = requestAnimationFrame(loop);
+  }
+
+  private stopLevelLoop() {
+    if (this.levelRafId !== null) {
+      cancelAnimationFrame(this.levelRafId);
+      this.levelRafId = null;
+    }
+  }
+
+  private computeLevel(data: Uint8Array): number {
+    let sum = 0;
+    for (let i = 0; i < data.length; i++) {
+      const v = (data[i] - 128) / 128;
+      sum += v * v;
+    }
+    return Math.sqrt(sum / data.length);
+  }
+
   private async handleRemoteOffer(offer: WebRtcOffer) {
     if (!this.peerId) {
       console.error('[CallPage] handleRemoteOffer: missing peerId');
@@ -236,7 +367,9 @@ export class CallPage implements OnInit, OnDestroy {
     }
 
     if (this.offerHandled) {
-      console.warn('[CallPage] handleRemoteOffer: offer already handled, skipping');
+      console.warn(
+        '[CallPage] handleRemoteOffer: offer already handled, skipping',
+      );
       return;
     }
     this.offerHandled = true;
@@ -253,7 +386,10 @@ export class CallPage implements OnInit, OnDestroy {
 
     try {
       console.log('[CallPage] handleRemoteOffer', offer);
-      console.log('[CallPage] handleRemoteOffer signalingState BEFORE =', this.pc.signalingState);
+      console.log(
+        '[CallPage] handleRemoteOffer signalingState BEFORE =',
+        this.pc.signalingState,
+      );
 
       const desc = new RTCSessionDescription({
         type: 'offer',
@@ -270,6 +406,9 @@ export class CallPage implements OnInit, OnDestroy {
         this.connecting.set(false);
         return;
       }
+
+      this.setupLocalLevelMeter();
+      this.setupRemoteLevelMeter();
 
       this.flushPendingIce();
 
@@ -351,16 +490,13 @@ export class CallPage implements OnInit, OnDestroy {
     if (!this.pc || !this.pc.remoteDescription) return;
 
     console.log('[CallPage] flushing', this.pendingIce.length, 'pending ICE');
-    this.pendingIce.forEach(ice => this.addIceCandidate(ice));
+    this.pendingIce.forEach((ice) => this.addIceCandidate(ice));
     this.pendingIce = [];
   }
 
   private addIceCandidate(ice: WebRtcIceCandidate) {
     if (!this.pc) return;
-
-    if (!ice.candidate) {
-      return;
-    }
+    if (!ice.candidate) return;
 
     const candidate = new RTCIceCandidate({
       candidate: ice.candidate,
@@ -368,7 +504,7 @@ export class CallPage implements OnInit, OnDestroy {
       sdpMLineIndex: ice.sdpMLineIndex ?? undefined,
     });
 
-    this.pc.addIceCandidate(candidate).catch(err => {
+    this.pc.addIceCandidate(candidate).catch((err) => {
       console.error('Error adding ICE candidate', err);
     });
   }
@@ -383,7 +519,7 @@ export class CallPage implements OnInit, OnDestroy {
       trackCount: tracks.length,
     });
 
-    tracks.forEach(track => {
+    tracks.forEach((track) => {
       track.enabled = !newMuted;
       console.log(
         '[CallPage] local track kind=' +
@@ -399,6 +535,10 @@ export class CallPage implements OnInit, OnDestroy {
     if (newMuted) {
       this.isLocalSpeaking.set(false);
     }
+  }
+
+  toggleVolumeSlider() {
+    this.showVolumeSlider.update((v) => !v);
   }
 
   onVolumeChange(event: Event) {
@@ -437,17 +577,28 @@ export class CallPage implements OnInit, OnDestroy {
     this.unregisterIce?.();
     this.unregisterHangup?.();
 
-    this.pc?.getSenders().forEach(sender => sender.track?.stop());
+    this.pc?.getSenders().forEach((sender) => sender.track?.stop());
     this.pc?.close();
     this.pc = null;
 
-    this.localStream?.getTracks().forEach(t => t.stop());
+    this.localStream?.getTracks().forEach((t) => t.stop());
     this.localStream = null;
 
     this.remoteStream = new MediaStream();
     this.pendingIce = [];
     this.offerHandled = false;
     this.connecting.set(false);
+
+    this.stopLevelLoop();
+    this.localAnalyzer = null;
+    this.remoteAnalyzer = null;
+    this.localDataArray = undefined;
+    this.remoteDataArray = undefined;
+
+    if (this.audioCtx) {
+      void this.audioCtx.close();
+      this.audioCtx = null;
+    }
 
     const el = this.remoteAudioRef?.nativeElement;
     if (el) {
@@ -458,4 +609,13 @@ export class CallPage implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.cleanup();
   }
+
+  protected readonly faMicrophone = faMicrophone;
+  protected readonly faMicrophoneSlash = faMicrophoneSlash;
+  protected readonly faPhoneSlash = faPhoneSlash;
+  protected readonly faVolumeOff = faVolumeOff;
+  protected readonly faVolumeXmark = faVolumeXmark;
+  protected readonly faVolumeLow = faVolumeLow;
+  protected readonly faVolumeHigh = faVolumeHigh;
+  protected readonly faWifi = faWifi;
 }
