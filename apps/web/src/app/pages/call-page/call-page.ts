@@ -54,11 +54,12 @@ export class CallPage implements OnInit, OnDestroy {
   private peerId: string | null = null;
   private isCaller = false;
 
-  // Unregister-Funktionen für Handler
   private unregisterOffer?: () => void;
   private unregisterAnswer?: () => void;
   private unregisterIce?: () => void;
   private unregisterHangup?: () => void;
+
+  private offerHandled = false;
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
@@ -79,7 +80,6 @@ export class CallPage implements OnInit, OnDestroy {
     this.peerId = active.peerId;
     this.isCaller = active.isCaller;
 
-    // User-Daten (nur UI)
     this.userService.currentUser().subscribe({
       next: (me) => this.localUser.set(me),
       error: (err) => console.error('Failed to load local user', err),
@@ -90,7 +90,6 @@ export class CallPage implements OnInit, OnDestroy {
       error: (err) => console.error('Failed to load remote user', err),
     });
 
-    // === Handler registrieren (für neue STOMP-Messages) ===
     this.unregisterOffer = this.callService.registerOfferHandler((offer: WebRtcOffer) => {
       if (!this.callId || offer.callId !== this.callId) return;
       console.log('[CallPage] handler: offer', offer);
@@ -117,31 +116,11 @@ export class CallPage implements OnInit, OnDestroy {
       void this.router.navigate(['/']);
     });
 
-    // PeerConnection initialisieren
     this.initPeerConnection(this.isCaller, this.peerId).catch(err => {
       console.error('Error in initPeerConnection', err);
       this.error.set('Failed to setup WebRTC');
       this.connecting.set(false);
     });
-
-    // === RACE-FIX: schon vorhandene Signale nachträglich verarbeiten ===
-    const existingOffer = this.callService.incomingOffer();
-    if (existingOffer && existingOffer.callId === this.callId) {
-      console.log('[CallPage] late existing offer, handling now', existingOffer);
-      void this.handleRemoteOffer(existingOffer);
-    }
-
-    const existingAnswer = this.callService.incomingAnswer();
-    if (existingAnswer && existingAnswer.callId === this.callId) {
-      console.log('[CallPage] late existing answer, handling now', existingAnswer);
-      void this.handleRemoteAnswer(existingAnswer);
-    }
-
-    const existingIce = this.callService.incomingIce();
-    if (existingIce && existingIce.callId === this.callId) {
-      console.log('[CallPage] late existing ICE, queueing', existingIce);
-      this.handleRemoteIce(existingIce);
-    }
   }
 
   private async initPeerConnection(isCaller: boolean, peerId: string | null) {
@@ -175,7 +154,15 @@ export class CallPage implements OnInit, OnDestroy {
     pc.ontrack = (event) => {
       console.log('[CallPage] ontrack, remote tracks:', event.streams[0].getTracks().length);
       event.streams[0].getTracks().forEach(track => {
+        console.log(
+          '[CallPage] remote track kind=' + track.kind + ' muted=' + track.muted,
+          track.getSettings ? track.getSettings() : {},
+        );
         this.remoteStream.addTrack(track);
+        track.onunmute = () => {
+          console.log('[CallPage] remote track onunmute fired');
+          this.isRemoteSpeaking.set(true);
+        };
       });
 
       const el = this.remoteAudioRef?.nativeElement;
@@ -188,31 +175,20 @@ export class CallPage implements OnInit, OnDestroy {
       }
 
       this.connecting.set(false);
-      this.isRemoteSpeaking.set(true);
     };
 
     this.pc = pc;
 
-    // Mic holen
-    try {
-      this.localStream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: false,
-      });
-    } catch (err) {
-      console.error('getUserMedia failed', err);
-      this.error.set('Microphone access denied');
-      this.connecting.set(false);
-      return;
-    }
-
-    // Local Tracks
-    this.localStream.getTracks().forEach(track => {
-      console.log('[CallPage] addTrack local', track.kind);
-      pc.addTrack(track, this.localStream!);
-    });
-
     if (isCaller) {
+      try {
+        await this.ensureLocalStream(pc);
+      } catch (err) {
+        console.error('getUserMedia failed (caller)', err);
+        this.error.set('Microphone access denied');
+        this.connecting.set(false);
+        return;
+      }
+
       console.log('[CallPage] creating offer as caller');
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
@@ -224,12 +200,46 @@ export class CallPage implements OnInit, OnDestroy {
     }
   }
 
+  private async ensureLocalStream(pc: RTCPeerConnection) {
+    if (!this.localStream) {
+      this.localStream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: false,
+      });
+    }
+
+    const existingTrackIds = new Set(
+      pc.getSenders()
+        .map(s => s.track)
+        .filter((t): t is MediaStreamTrack => !!t)
+        .map(t => t.id),
+    );
+
+    this.localStream.getAudioTracks().forEach((track, idx) => {
+      if (existingTrackIds.has(track.id)) {
+        return;
+      }
+      console.log('[CallPage] addTrack local', {
+        idx,
+        enabled: track.enabled,
+        muted: track.muted,
+        settings: track.getSettings ? track.getSettings() : {},
+      });
+      pc.addTrack(track, this.localStream!);
+    });
+  }
+
   private async handleRemoteOffer(offer: WebRtcOffer) {
-    // Defensive: falls PC (noch) nicht existiert, jetzt initialisieren
     if (!this.peerId) {
       console.error('[CallPage] handleRemoteOffer: missing peerId');
       return;
     }
+
+    if (this.offerHandled) {
+      console.warn('[CallPage] handleRemoteOffer: offer already handled, skipping');
+      return;
+    }
+    this.offerHandled = true;
 
     if (!this.pc) {
       console.warn('[CallPage] handleRemoteOffer: pc is null, init now');
@@ -243,6 +253,7 @@ export class CallPage implements OnInit, OnDestroy {
 
     try {
       console.log('[CallPage] handleRemoteOffer', offer);
+      console.log('[CallPage] handleRemoteOffer signalingState BEFORE =', this.pc.signalingState);
 
       const desc = new RTCSessionDescription({
         type: 'offer',
@@ -251,7 +262,29 @@ export class CallPage implements OnInit, OnDestroy {
 
       await this.pc.setRemoteDescription(desc);
 
+      try {
+        await this.ensureLocalStream(this.pc);
+      } catch (err) {
+        console.error('getUserMedia failed (callee)', err);
+        this.error.set('Microphone access denied');
+        this.connecting.set(false);
+        return;
+      }
+
       this.flushPendingIce();
+
+      console.log(
+        '[CallPage] handleRemoteOffer signalingState BEFORE createAnswer =',
+        this.pc.signalingState,
+      );
+
+      if (this.pc.signalingState !== 'have-remote-offer') {
+        console.warn(
+          '[CallPage] handleRemoteOffer: unexpected signalingState before createAnswer:',
+          this.pc.signalingState,
+        );
+        return;
+      }
 
       const answer = await this.pc.createAnswer();
       await this.pc.setLocalDescription(answer);
@@ -273,6 +306,14 @@ export class CallPage implements OnInit, OnDestroy {
   private async handleRemoteAnswer(answer: WebRtcAnswer & { callId?: string }) {
     if (!this.pc) {
       console.error('[CallPage] handleRemoteAnswer: pc is null (caller)');
+      return;
+    }
+
+    const state = this.pc.signalingState;
+    console.log('[CallPage] handleRemoteAnswer signalingState =', state);
+
+    if (state !== 'have-local-offer') {
+      console.warn('[CallPage] ignoring answer in unexpected state', state);
       return;
     }
 
@@ -317,6 +358,10 @@ export class CallPage implements OnInit, OnDestroy {
   private addIceCandidate(ice: WebRtcIceCandidate) {
     if (!this.pc) return;
 
+    if (!ice.candidate) {
+      return;
+    }
+
     const candidate = new RTCIceCandidate({
       candidate: ice.candidate,
       sdpMid: ice.sdpMid ?? undefined,
@@ -333,8 +378,22 @@ export class CallPage implements OnInit, OnDestroy {
     this.isMuted.set(newMuted);
 
     const tracks = this.localStream?.getAudioTracks() ?? [];
+    console.log('[CallPage] toggleMute', {
+      newMuted,
+      trackCount: tracks.length,
+    });
+
     tracks.forEach(track => {
       track.enabled = !newMuted;
+      console.log(
+        '[CallPage] local track kind=' +
+        track.kind +
+        ' enabled=' +
+        track.enabled +
+        ' muted=' +
+        track.muted,
+        track.getSettings ? track.getSettings() : {},
+      );
     });
 
     if (newMuted) {
@@ -387,6 +446,7 @@ export class CallPage implements OnInit, OnDestroy {
 
     this.remoteStream = new MediaStream();
     this.pendingIce = [];
+    this.offerHandled = false;
     this.connecting.set(false);
 
     const el = this.remoteAudioRef?.nativeElement;

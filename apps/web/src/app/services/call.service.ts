@@ -52,13 +52,11 @@ export class CallService {
   callInvite = signal<CallInvite | null>(null);
   activeCall = signal<ActiveCall | null>(null);
 
-  // Letztes empfangenes Signal (pro Typ), CallPage filtert per callId
   incomingOffer = signal<WebRtcOffer | null>(null);
   incomingAnswer = signal<WebRtcAnswer | null>(null);
   incomingIce = signal<WebRtcIceCandidate | null>(null);
   callHangup = signal<CallHangupEvent | null>(null);
 
-  // Handler-Mechanik für CallPage
   private offerHandlers: Array<(offer: WebRtcOffer) => void> = [];
   private answerHandlers: Array<(answer: WebRtcAnswer) => void> = [];
   private iceHandlers: Array<(ice: WebRtcIceCandidate) => void> = [];
@@ -66,6 +64,13 @@ export class CallService {
 
   registerOfferHandler(fn: (offer: WebRtcOffer) => void): () => void {
     this.offerHandlers.push(fn);
+
+    const last = this.incomingOffer();
+    if (last) {
+      console.log('[CallService] replay last offer to new handler', last);
+      fn(last);
+    }
+
     return () => {
       this.offerHandlers = this.offerHandlers.filter(h => h !== fn);
     };
@@ -73,6 +78,13 @@ export class CallService {
 
   registerAnswerHandler(fn: (answer: WebRtcAnswer) => void): () => void {
     this.answerHandlers.push(fn);
+
+    const last = this.incomingAnswer();
+    if (last) {
+      console.log('[CallService] replay last answer to new handler', last);
+      fn(last);
+    }
+
     return () => {
       this.answerHandlers = this.answerHandlers.filter(h => h !== fn);
     };
@@ -80,6 +92,13 @@ export class CallService {
 
   registerIceHandler(fn: (ice: WebRtcIceCandidate) => void): () => void {
     this.iceHandlers.push(fn);
+
+    const last = this.incomingIce();
+    if (last) {
+      console.log('[CallService] replay last ICE to new handler', last);
+      fn(last);
+    }
+
     return () => {
       this.iceHandlers = this.iceHandlers.filter(h => h !== fn);
     };
@@ -87,6 +106,13 @@ export class CallService {
 
   registerHangupHandler(fn: (evt: CallHangupEvent) => void): () => void {
     this.hangupHandlers.push(fn);
+
+    const last = this.callHangup();
+    if (last) {
+      console.log('[CallService] replay last hangup to new handler', last);
+      fn(last);
+    }
+
     return () => {
       this.hangupHandlers = this.hangupHandlers.filter(h => h !== fn);
     };
@@ -162,7 +188,6 @@ export class CallService {
     this.client.activate();
   }
 
-  // Caller startet Call
   callUser(toUserId: string, callId: string, fromUserId: string, fromUsername: string) {
     console.log('[CallService] callUser', { toUserId, callId, fromUserId, fromUsername });
 
