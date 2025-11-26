@@ -328,7 +328,7 @@ export class CallPage implements OnInit, OnDestroy {
           this.localDataArray as any,
         );
         const level = this.computeLevel(this.localDataArray);
-        this.isLocalSpeaking.set(!this.isMuted() && level > 0.005);
+        this.isLocalSpeaking.set(!this.isMuted() && level > 0.02);
       }
 
       if (this.remoteAnalyzer && this.remoteDataArray) {
@@ -337,7 +337,7 @@ export class CallPage implements OnInit, OnDestroy {
           this.remoteDataArray as any,
         );
         const level = this.computeLevel(this.remoteDataArray);
-        this.isRemoteSpeaking.set(level > 0.005);
+        this.isRemoteSpeaking.set(level > 0.02);
       }
     };
 

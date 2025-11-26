@@ -61,6 +61,7 @@
       transform: scale(1);
 
       .banner-img {
+        z-index: 1;
         width: 100%;
         height: 100%;
         object-fit: cover;
@@ -70,6 +71,7 @@
       }
 
       .filter {
+        z-index: 1;
         position: absolute;
         width: 100%;
         height: 100%;
@@ -77,6 +79,7 @@
       }
 
       .fallback-color-back {
+        z-index: 0;
         width: 100%;
         height: 100%;
         background: #5c3ad4;
