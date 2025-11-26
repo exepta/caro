@@ -20,8 +20,15 @@ export class AllTab {
   @Output()
   friendAddClick = new EventEmitter<void>();
 
+  @Output()
+  callFriendClick = new EventEmitter<FriendVm>();
+
   onFriendAddClick() {
     this.friendAddClick.emit();
+  }
+
+  onCall(friend: FriendVm) {
+    this.callFriendClick.emit(friend);
   }
 
   protected readonly faPhone = faPhone;

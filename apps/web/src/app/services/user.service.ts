@@ -41,6 +41,10 @@ export class UserService {
     return this.userApi.getCurrentUser();
   }
 
+  getCurrentUser(): UserSettingsResponse | null {
+    return this.user();
+  }
+
   clearUser(): void {
     this.userSettingState.set(null);
     this.errorState.set(null);

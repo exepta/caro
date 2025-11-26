@@ -31,7 +31,12 @@
 
 <section class="main-content">
   @if (activeTab() === 'all') {
-    <app-all-tab [friends]="friends" (friendAddClick)="openFriendAdd()"></app-all-tab>
+    <app-all-tab
+      [friends]="friends"
+      (friendAddClick)="openFriendAdd()"
+      (callFriendClick)="startCall($event)"
+    >
+    </app-all-tab>
   } @else if (activeTab() === 'pending') {
     <app-pending-tab
       [outgoingRequests]="outgoingRequests"

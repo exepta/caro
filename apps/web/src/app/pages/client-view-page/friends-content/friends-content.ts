@@ -10,6 +10,8 @@ import { switchMap } from 'rxjs/operators';
 import { AllTab } from './tabs/all-tab/all-tab';
 import { PendingTab } from './tabs/pending-tab/pending-tab';
 import { NgClass } from '@angular/common';
+import {CallService} from '../../../services/call.service';
+import {Router} from '@angular/router';
 
 @Component({
   selector: 'app-friends-content',
@@ -26,6 +28,8 @@ export class FriendsContent implements OnInit {
 
   private readonly friendService = inject(FriendService);
   private readonly userService = inject(UserService);
+  private readonly callService = inject(CallService);
+  private readonly router = inject(Router);
 
   private searchInput$ = new Subject<string>();
 
@@ -192,6 +196,17 @@ export class FriendsContent implements OnInit {
           },
         });
     }
+  }
+
+  startCall(friend: FriendVm) {
+    const callId = crypto.randomUUID();
+    const currentUser = this.userService.getCurrentUser();
+    if (!currentUser) return;
+
+    this.callService.callUser(friend.id, callId, currentUser.id ?? '', currentUser.username!);
+
+    console.log('Started call with', friend.username, 'as', callId);
+    void this.router.navigate(['/call', callId]);
   }
 
   protected readonly faUser = faUser;

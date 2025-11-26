@@ -57,4 +57,18 @@ public class JwtService {
                 .build()
                 .parseClaimsJws(token);
     }
+
+    public UUID extractUserId(String token) {
+        return UUID.fromString(parse(token).getBody().getSubject());
+    }
+
+    public boolean isRefreshToken(String token) {
+        Claims claims = parse(token).getBody();
+        String typ = claims.get("typ", String.class);
+        return "refresh".equals(typ);
+    }
+
+    public boolean isAccessToken(String token) {
+        return !isRefreshToken(token);
+    }
 }

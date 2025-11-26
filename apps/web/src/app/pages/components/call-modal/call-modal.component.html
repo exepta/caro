@@ -1,0 +1,29 @@
+@if (call(); as c) {
+  <div class="backdrop">
+    <div class="call-modal">
+      @if (callerLoading()) {
+
+      } @else if (caller(); as user) {
+
+        <div class="modal-call-info">
+          <div class="call-avatar" [style.border-color]="user.profile?.accentColor || '#2b2d31'">
+            @if (user.profile?.avatarUrl) {
+              <img [src]="user.profile?.avatarUrl" [alt]="user.profile?.displayName || user.username" />
+            } @else {
+              <span>{{ (user.profile?.displayName || user.username || '?')[0] }}</span>
+            }
+          </div>
+
+          <h3>{{ user.profile?.displayName || user.username }}</h3>
+          <h5>Incoming Call...</h5>
+        </div>
+
+        <div class="actions">
+          <button class="accept" (click)="accept(c)"><fa-icon [icon]="faPhone"></fa-icon>Accept</button>
+          <button class="decline" (click)="reject(c)"><fa-icon [icon]="faXmark"></fa-icon>Decline</button>
+        </div>
+
+      }
+    </div>
+  </div>
+}

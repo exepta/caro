@@ -22,6 +22,11 @@ export const routes: Routes = [
     canMatch: [authGuard]
   },
   {
+    path: 'call/:id',
+    loadComponent: () =>
+      import('./pages/call-page/call-page').then(m => m.CallPage),
+  },
+  {
     path: '',
     pathMatch: 'full',
     redirectTo: 'auth',
