@@ -12,30 +12,53 @@
   } @else {
     <div class="user-display">
       @if (localUser(); as me) {
-        <div
-          class="user-avatar-card"
-          [class.speaking]="isLocalSpeaking()"
-          [style.border-color]="me.profile?.accentColor || '#2c2f3a'"
-        >
-          @if (me.profile?.avatarUrl) {
-            <img [src]="me.profile?.avatarUrl" [alt]="me.profile?.displayName || me.username" />
-          } @else {
-            <span>{{ (me.profile?.displayName || me.username || '?')[0] }}</span>
-          }
+        <div class="user-info-card">
+          <div
+            class="user-avatar-card"
+            [class.speaking]="isLocalSpeaking()"
+            [style.border-color]="me.profile?.accentColor || '#2c2f3a'"
+          >
+            <div class="inner-avatar">
+              @if (me.profile?.avatarUrl) {
+                <img [src]="me.profile?.avatarUrl" [alt]="me.profile?.displayName || me.username" />
+              } @else {
+                <span>{{ (me.profile?.displayName || me.username || '?')[0] }}</span>
+              }
+            </div>
+
+            @if(isMuted()) {
+              <div class="is-muted-icon">
+                <fa-icon [icon]="faMicrophoneSlash"></fa-icon>
+              </div>
+            }
+          </div>
+
+          <div class="user-info">
+            <h3>{{ me.profile?.displayName ?? me.username }}</h3>
+          </div>
         </div>
       }
 
       @if (remoteUser(); as other) {
-        <div
-          class="user-avatar-card"
-          [class.speaking]="isRemoteSpeaking()"
-          [style.border-color]="other.profile?.accentColor || '#2c2f3a'"
-        >
-          @if (other.profile?.avatarUrl) {
-            <img [src]="other.profile?.avatarUrl" [alt]="other.profile?.displayName || other.username" />
-          } @else {
-            <span>{{ (other.profile?.displayName || other.username || '?')[0] }}</span>
-          }
+        <div class="user-info-card">
+          <div
+            class="user-avatar-card"
+            [class.speaking]="isRemoteSpeaking()"
+            [style.border-color]="other.profile?.accentColor || '#2c2f3a'"
+          >
+
+            <div class="inner-avatar">
+              @if (other.profile?.avatarUrl) {
+                <img [src]="other.profile?.avatarUrl" [alt]="other.profile?.displayName || other.username" />
+              } @else {
+                <span>{{ (other.profile?.displayName || other.username || '?')[0] }}</span>
+              }
+            </div>
+          </div>
+
+          <div class="user-info">
+            <h3>{{ other.profile?.displayName ?? other.username }}</h3>
+          </div>
         </div>
       }
     </div>

@@ -48,8 +48,11 @@ export class ColorPicker implements AfterViewInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['color'] && !changes['color'].firstChange) {
-      this.applyHex(this.color, false);
+    const colorChange = changes['color'];
+    if (colorChange && !colorChange.firstChange) {
+      const newColor = colorChange.currentValue as string;
+      this.color = newColor;
+      this.applyHex(newColor, false);
       this.updateCursorFromCurrentColor();
     }
   }
