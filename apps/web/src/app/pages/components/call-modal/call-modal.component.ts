@@ -1,5 +1,11 @@
-import { Component, effect, inject, signal } from '@angular/core';
-import { CallInvite, CallService } from '../../../services/call.service';
+import {
+  Component,
+  OnDestroy,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
+import { CallInvite, CallService, CallHangupEvent } from '../../../services/call.service';
 import { Router } from '@angular/router';
 import { FaIconComponent } from '@fortawesome/angular-fontawesome';
 import { faPhone, faXmark } from '@fortawesome/free-solid-svg-icons';
@@ -14,7 +20,7 @@ import { AudioService } from '../../../services/audio.service';
   templateUrl: './call-modal.component.html',
   styleUrl: './call-modal.component.scss',
 })
-export class CallModalComponent {
+export class CallModalComponent implements OnDestroy {
   private readonly callService = inject(CallService);
   private readonly userService = inject(UserService);
   private readonly audioService = inject(AudioService);
@@ -25,6 +31,8 @@ export class CallModalComponent {
   caller = signal<UserSettingsResponse | null>(null);
   callerLoading = signal(false);
   callerError = signal<string | null>(null);
+
+  private readonly unregisterHangup?: () => void;
 
   constructor() {
     effect(() => {
@@ -58,6 +66,21 @@ export class CallModalComponent {
         },
       });
     });
+
+    this.unregisterHangup = this.callService.registerHangupHandler(
+      (evt: CallHangupEvent) => {
+        const current = this.call();
+        if (!current) return;
+
+        if (evt.callId !== current.callId) {
+          return;
+        }
+
+        console.log('[CallModal] received hangup for current invite, closing');
+        this.audioService.stop('ringtone');
+        this.callService.closeModal();
+      },
+    );
   }
 
   accept(callInvite: CallInvite) {
@@ -76,8 +99,15 @@ export class CallModalComponent {
 
   reject(callInvite: CallInvite) {
     this.audioService.stop('ringtone');
+
+    this.callService.sendHangup(callInvite.callId, callInvite.fromUserId);
     this.callService.rejectCall(callInvite.callId, callInvite.fromUserId);
+
     this.callService.closeModal();
+  }
+
+  ngOnDestroy(): void {
+    this.unregisterHangup?.();
   }
 
   protected readonly faPhone = faPhone;
