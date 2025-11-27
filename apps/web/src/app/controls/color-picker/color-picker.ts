@@ -32,21 +32,33 @@ export class ColorPicker implements AfterViewInit, OnChanges {
   private ctx: CanvasRenderingContext2D | null = null;
   private isDragging = false;
 
+  // Cursor-Overlay-Position
+  cursorX = 0;
+  cursorY = 0;
+  cursorVisible = false;
+
   ngAfterViewInit(): void {
     this.ctx = this.colorCanvas.nativeElement.getContext('2d');
-    this.drawPalette();
+    if (!this.ctx) return;
+
+    this.drawPaletteBase();
+
+    this.applyHex(this.color, false);
+    this.updateCursorFromCurrentColor();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['color']) {
+    if (changes['color'] && !changes['color'].firstChange) {
       this.applyHex(this.color, false);
+      this.updateCursorFromCurrentColor();
     }
   }
 
   // ========================
   // Canvas / Palette
   // ========================
-  private drawPalette() {
+
+  private drawPaletteBase() {
     if (!this.ctx) return;
 
     const canvas = this.colorCanvas.nativeElement;
@@ -77,21 +89,21 @@ export class ColorPicker implements AfterViewInit, OnChanges {
     this.ctx.fillRect(0, 0, width, height);
   }
 
-  onCanvasMouseDown(event: MouseEvent) {
+  protected onCanvasMouseDown(event: MouseEvent) {
     this.isDragging = true;
     this.pickColorFromEvent(event);
   }
 
-  onCanvasMouseMove(event: MouseEvent) {
+  protected onCanvasMouseMove(event: MouseEvent) {
     if (!this.isDragging) return;
     this.pickColorFromEvent(event);
   }
 
-  onCanvasMouseUp() {
+  protected onCanvasMouseUp() {
     this.isDragging = false;
   }
 
-  onCanvasMouseLeave() {
+  protected onCanvasMouseLeave() {
     this.isDragging = false;
   }
 
@@ -113,11 +125,62 @@ export class ColorPicker implements AfterViewInit, OnChanges {
     const [r, g, b] = pixel;
 
     this.setRgb(r, g, b, true);
+
+    this.cursorX = x;
+    this.cursorY = y;
+    this.cursorVisible = true;
+  }
+
+  private updateCursorFromCurrentColor() {
+    if (!this.ctx) return;
+
+    const canvas = this.colorCanvas.nativeElement;
+    const width = canvas.width;
+    const height = canvas.height;
+
+    const image = this.ctx.getImageData(0, 0, width, height).data;
+    const targetR = this.red;
+    const targetG = this.green;
+    const targetB = this.blue;
+
+    let bestX = 0;
+    let bestY = 0;
+    let bestDist = Number.POSITIVE_INFINITY;
+
+    for (let y = 0; y < height; y++) {
+      const rowOffset = y * width * 4;
+      for (let x = 0; x < width; x++) {
+        const idx = rowOffset + x * 4;
+        const r = image[idx];
+        const g = image[idx + 1];
+        const b = image[idx + 2];
+
+        const dr = r - targetR;
+        const dg = g - targetG;
+        const db = b - targetB;
+        const dist = dr * dr + dg * dg + db * db;
+
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestX = x;
+          bestY = y;
+          if (dist === 0) {
+            break;
+          }
+        }
+      }
+      if (bestDist === 0) break;
+    }
+
+    this.cursorX = bestX;
+    this.cursorY = bestY;
+    this.cursorVisible = true;
   }
 
   // ========================
   // RGB / HEX Inputs
   // ========================
+
   onRgbInput(channel: 'red' | 'green' | 'blue', e: Event) {
     const target = e.target as HTMLInputElement | null;
     if (!target) return;
@@ -131,12 +194,14 @@ export class ColorPicker implements AfterViewInit, OnChanges {
     if (channel === 'blue') this.blue = num;
 
     this.updateHexFromRgb(true);
+    this.updateCursorFromCurrentColor();
   }
 
   onHexInput(e: Event) {
     const target = e.target as HTMLInputElement | null;
     if (!target) return;
     this.applyHex(target.value);
+    this.updateCursorFromCurrentColor();
   }
 
   private setRgb(r: number, g: number, b: number, emit: boolean) {
@@ -159,6 +224,7 @@ export class ColorPicker implements AfterViewInit, OnChanges {
     if (!hex.startsWith('#')) {
       hex = '#' + hex;
     }
+
     // #rgb → #rrggbb
     if (hex.length === 4) {
       const r = hex[1];

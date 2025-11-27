@@ -1,14 +1,25 @@
 <div class="color-picker">
   <div class="canvas-wrapper">
-    <canvas
-      #colorCanvas
-      width="260"
-      height="160"
-      (mousedown)="onCanvasMouseDown($event)"
-      (mousemove)="onCanvasMouseMove($event)"
-      (mouseup)="onCanvasMouseUp()"
-      (mouseleave)="onCanvasMouseLeave()"
-    ></canvas>
+    <div class="canvas-inner">
+      <canvas
+        #colorCanvas
+        width="260"
+        height="160"
+        (mousedown)="onCanvasMouseDown($event)"
+        (mousemove)="onCanvasMouseMove($event)"
+        (mouseup)="onCanvasMouseUp()"
+        (mouseleave)="onCanvasMouseLeave()"
+      ></canvas>
+
+      <!-- Overlay-Dot -->
+      @if(cursorVisible) {
+      <div
+        class="color-cursor"
+        [style.left.px]="cursorX"
+        [style.top.px]="cursorY"
+      ></div>
+      }
+    </div>
 
     <div
       class="color-preview"
