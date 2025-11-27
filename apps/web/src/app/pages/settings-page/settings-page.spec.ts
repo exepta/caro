@@ -3,8 +3,8 @@ import { signal } from '@angular/core';
 import { of } from 'rxjs';
 import { SettingsPage } from './settings-page';
 import { SettingsPageType } from '../../types/settings-page-types';
-import { UserSettingsService } from '../../services/user-settings.service';
-import { AuthService } from '../../services/auth.service';
+import { UserSettingsService } from '../../services/user/user-settings.service';
+import { AuthService } from '../../services/auth/auth.service';
 import { Location } from '@angular/common';
 
 describe('SettingsPage', () => {

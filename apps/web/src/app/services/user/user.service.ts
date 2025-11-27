@@ -1,6 +1,6 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { Observable } from 'rxjs';
-import { UserInternalService, UserSettingsResponse } from '../api';
+import { UserInternalService, UserSettingsResponse } from '../../api';
 
 @Injectable({
   providedIn: 'root',

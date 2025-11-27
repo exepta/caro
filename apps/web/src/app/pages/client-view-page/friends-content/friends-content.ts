@@ -1,17 +1,18 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { faPlus, faUser } from '@fortawesome/free-solid-svg-icons';
 import { FaIconComponent } from '@fortawesome/angular-fontawesome';
-import { FriendRequestVm, FriendVm } from '../../../services/friends.vm';
-import { FriendService } from '../../../services/friend.service';
-import { UserService } from '../../../services/user.service';
+import { FriendRequestVm, FriendVm } from '../../../services/social/friends.vm';
+import { FriendService } from '../../../services/social/friend.service';
+import { UserService } from '../../../services/user/user.service';
 import { debounceTime, distinctUntilChanged, of, Subject } from 'rxjs';
 import { UserSettingsResponse } from '../../../api';
 import { switchMap } from 'rxjs/operators';
 import { AllTab } from './tabs/all-tab/all-tab';
 import { PendingTab } from './tabs/pending-tab/pending-tab';
 import { NgClass } from '@angular/common';
-import {CallService} from '../../../services/call.service';
+import {CallService} from '../../../services/voice/call.service';
 import {Router} from '@angular/router';
+import {Modal} from '../../components/modal/modal';
 
 @Component({
   selector: 'app-friends-content',
@@ -19,7 +20,8 @@ import {Router} from '@angular/router';
     FaIconComponent,
     AllTab,
     PendingTab,
-    NgClass
+    NgClass,
+    Modal
   ],
   templateUrl: './friends-content.html',
   styleUrl: './friends-content.scss',

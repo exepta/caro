@@ -5,13 +5,13 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { CallInvite, CallService, CallHangupEvent } from '../../../services/call.service';
+import { CallInvite, CallService, CallHangupEvent } from '../../../services/voice/call.service';
 import { Router } from '@angular/router';
 import { FaIconComponent } from '@fortawesome/angular-fontawesome';
 import { faPhone, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { UserSettingsResponse } from '../../../api';
-import { UserService } from '../../../services/user.service';
-import { AudioService } from '../../../services/audio.service';
+import { UserService } from '../../../services/user/user.service';
+import { AudioService } from '../../../services/voice/audio.service';
 
 @Component({
   selector: 'app-call-modal',

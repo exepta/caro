@@ -9,7 +9,7 @@ import { TestBed } from '@angular/core/testing';
 import { of, ReplaySubject, throwError } from 'rxjs';
 
 import { AccessTokenInterceptor } from './access-token.interceptor-interceptor';
-import { TokenService } from '../services/token.service';
+import { TokenService } from '../services/auth/token.service';
 import { HttpClient } from '@angular/common/http';
 
 interface RefreshResponse {

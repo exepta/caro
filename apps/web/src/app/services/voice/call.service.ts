@@ -1,6 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { Client, IMessage } from '@stomp/stompjs';
-import { TokenService } from './token.service';
+import { TokenService } from '../auth/token.service';
 import { Router } from '@angular/router';
 
 export interface CallInvite {

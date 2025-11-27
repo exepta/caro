@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { CanActivateFn, Router } from '@angular/router';
 import { provideRouter } from '@angular/router';
 import { authRedirectGuard } from './auth-redirect-guard';
-import { AuthService } from '../services/auth.service';
+import { AuthService } from '../services/auth/auth.service';
 
 describe('authRedirectGuard', () => {
   const executeGuard = (...guardParameters: Parameters<typeof authRedirectGuard>) =>

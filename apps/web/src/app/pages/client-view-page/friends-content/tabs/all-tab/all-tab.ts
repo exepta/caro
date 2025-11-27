@@ -1,5 +1,5 @@
 import {Component, EventEmitter, Input, Output, signal} from '@angular/core';
-import {FriendVm} from '../../../../../services/friends.vm';
+import {FriendVm} from '../../../../../services/social/friends.vm';
 import {FaIconComponent} from "@fortawesome/angular-fontawesome";
 import {TooltipComponent} from "../../../../components/tooltip/tooltip.component";
 import {faCheck, faComment, faEnvelope, faPhone} from '@fortawesome/free-solid-svg-icons';

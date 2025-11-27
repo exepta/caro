@@ -1,6 +1,6 @@
 import {Component, inject, signal} from '@angular/core';
 import {Router} from '@angular/router';
-import {AuthService} from '../../services/auth.service';
+import {AuthService} from '../../services/auth/auth.service';
 import {SideBar, SideBarSection} from '../components/side-bar/side-bar';
 import {FriendsContent} from './friends-content/friends-content';
 import {GroupsContent} from './groups-content/groups-content';

@@ -1,5 +1,5 @@
 import {inject, Injectable, signal} from '@angular/core';
-import {InternalAuthService, LoginRequest, RegisterRequest, TokenResponse} from '../api';
+import {InternalAuthService, LoginRequest, RegisterRequest, TokenResponse} from '../../api';
 import {Router} from '@angular/router';
 import {tap} from 'rxjs';
 

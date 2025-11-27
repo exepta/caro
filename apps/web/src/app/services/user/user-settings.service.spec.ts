@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { UserSettingsService } from './user-settings.service';
 import { UserService } from './user.service';
-import { UserInternalService, UserSettingsResponse } from '../api';
+import { UserInternalService, UserSettingsResponse } from '../../api';
 
 if (typeof (globalThis as any).structuredClone !== 'function') {
   (globalThis as any).structuredClone = (val: any) =>

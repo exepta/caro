@@ -2,8 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { of, throwError } from 'rxjs';
 import { LoginModule } from './login-module';
-import { AuthService } from '../../../services/auth.service';
-import { UserService } from '../../../services/user.service';
+import { AuthService } from '../../../services/auth/auth.service';
+import { UserService } from '../../../services/user/user.service';
 import { Router } from '@angular/router';
 
 describe('LoginModule', () => {

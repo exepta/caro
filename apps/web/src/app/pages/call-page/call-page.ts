@@ -15,8 +15,8 @@ import {
   WebRtcOffer,
   WebRtcAnswer,
   CallHangupEvent,
-} from '../../services/call.service';
-import { UserService } from '../../services/user.service';
+} from '../../services/voice/call.service';
+import { UserService } from '../../services/user/user.service';
 import { UserSettingsResponse } from '../../api';
 import { SideBar, SideBarSection } from '../components/side-bar/side-bar';
 import { FaIconComponent } from '@fortawesome/angular-fontawesome';

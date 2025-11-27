@@ -51,93 +51,102 @@
   </div>
 </section>
 
-@if (isFriendAddOpen) {
-  <div class="modal-backdrop" (click)="closeFriendAdd()">
-    <div class="modal" (click)="$event.stopPropagation()">
-      <header class="modal-header">
-        <h4>Friend Add</h4>
-      </header>
+<app-modal
+  [(open)]="isFriendAddOpen"
+  (closed)="closeFriendAdd()"
+>
+  <!-- HEADER -->
+  <h4 modal-header>Friend Add</h4>
 
-      <section class="modal-body">
-        <p class="description">
-          You can search for a user to add them with their username.
-        </p>
+  <!-- BODY -->
+  <p modal-body class="description">
+    You can search for a user to add them with their username.
+  </p>
 
-        <!-- Search + Results als ein Block -->
-        <div class="friend-search-wrapper">
-          <input
-            type="search"
-            class="normal-input-field friend-add-search"
-            placeholder="Search for a user..."
-            (input)="onFriendSearchInput($event)"
-          />
+  <!-- Search + Results als ein Block -->
+  <div modal-body class="friend-search-wrapper">
+    <input
+      type="search"
+      class="normal-input-field friend-add-search"
+      placeholder="Search for a user..."
+      (input)="onFriendSearchInput($event)"
+    />
 
-          @if (searchResults()?.length) {
-            <div class="list-results animate-in">
-              @for (user of searchResults(); track user.id) {
-                <div class="friend-search-item">
-                  @if (user.profile?.bannerUrl) {
+    @if (searchResults()?.length) {
+      <div class="list-results animate-in">
+        @for (user of searchResults(); track user.id) {
+          <div class="friend-search-item">
+            @if (user.profile?.bannerUrl) {
+              <img
+                class="friend-search-banner"
+                [src]="user.profile?.bannerUrl"
+                [alt]="user.profile?.displayName || user.username"
+              />
+            }
+            <div class="friend-search-filter"></div>
+
+            <div class="friend-search-content">
+              <div class="friend-search-main">
+                <div
+                  class="avatar"
+                  [style.border-color]="user.profile?.accentColor || '#2b2d31'"
+                >
+                  @if (user.profile?.avatarUrl) {
                     <img
-                      class="friend-search-banner"
-                      [src]="user.profile?.bannerUrl"
+                      [src]="user.profile?.avatarUrl"
                       [alt]="user.profile?.displayName || user.username"
                     />
+                  } @else {
+                    <span class="avatar-placeholder">
+                        {{
+                        ((user.profile?.displayName ?? user.username ?? '')[0] ??
+                          '').toUpperCase()
+                      }}
+                      </span>
                   }
-                  <div class="friend-search-filter"></div>
-
-                  <div class="friend-search-content">
-                    <div class="friend-search-main">
-                      <div
-                        class="avatar"
-                        [style.border-color]="user.profile?.accentColor || '#2b2d31'"
-                      >
-                        @if (user.profile?.avatarUrl) {
-                          <img
-                            [src]="user.profile?.avatarUrl"
-                            [alt]="user.profile?.displayName || user.username"
-                          />
-                        } @else {
-                          <span class="avatar-placeholder">
-                            {{ ((user.profile?.displayName ?? user.username ?? '')[0] ?? '').toUpperCase() }}
-                          </span>
-                        }
-                      </div>
-
-                      <div class="text">
-                        <h5>{{ user.profile?.displayName || user.username }}</h5>
-                        <span>&#64;{{ user.username }}</span>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      class="friend-request-btn"
-                      [ngClass]="{
-                      'friend-request-add': !isOutgoingPending(user) && !hasIncomingPending(user),
-                      'friend-request-revoke': isOutgoingPending(user),
-                      'friend-request-accept': hasIncomingPending(user) && !isOutgoingPending(user)
-                      }"
-                      (click)="onToggleFriendRequest(user)"
-                    >
-                      {{ hasIncomingPending(user)
-                      ? 'Accept'
-                      : (isOutgoingPending(user) ? 'Revoke' : 'Add') }}
-                    </button>
-                  </div>
                 </div>
-              }
-            </div>
-          }
-        </div>
-      </section>
 
-      <footer class="modal-footer">
-        <button type="button" class="normal-btn" (click)="closeFriendAdd()">
-          Close
-        </button>
-      </footer>
-    </div>
+                <div class="text">
+                  <h5>{{ user.profile?.displayName || user.username }}</h5>
+                  <span>&#64;{{ user.username }}</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                class="friend-request-btn"
+                [ngClass]="{
+                    'friend-request-add':
+                      !isOutgoingPending(user) && !hasIncomingPending(user),
+                    'friend-request-revoke': isOutgoingPending(user),
+                    'friend-request-accept':
+                      hasIncomingPending(user) && !isOutgoingPending(user)
+                  }"
+                (click)="onToggleFriendRequest(user)"
+              >
+                {{
+                  hasIncomingPending(user)
+                    ? 'Accept'
+                    : (isOutgoingPending(user) ? 'Revoke' : 'Add')
+                }}
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
   </div>
-}
+
+  <!-- FOOTER -->
+  <button
+    modal-footer
+    type="button"
+    class="normal-btn"
+    (click)="closeFriendAdd()"
+  >
+    Close
+  </button>
+</app-modal>
+
 
 

@@ -5,14 +5,16 @@ import { SettingsAccountModule } from './module/settings-account-module/settings
 import {
   SettingsPrivacyAndSecurityModule
 } from './module/settings-privacy-and-security-module/settings-privacy-and-security-module';
-import { UserSettingsService } from '../../services/user-settings.service';
-import { AuthService } from '../../services/auth.service';
+import { UserSettingsService } from '../../services/user/user-settings.service';
+import { AuthService } from '../../services/auth/auth.service';
+import {Modal} from '../components/modal/modal';
 
 @Component({
   selector: 'app-settings-page',
   imports: [
     SettingsAccountModule,
-    SettingsPrivacyAndSecurityModule
+    SettingsPrivacyAndSecurityModule,
+    Modal
   ],
   templateUrl: './settings-page.html',
   styleUrl: './settings-page.scss',

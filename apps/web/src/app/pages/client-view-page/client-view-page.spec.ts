@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { ClientViewPage } from './client-view-page';
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../../services/auth/auth.service';
 import { SideBarSection } from '../components/side-bar/side-bar';
-import { UserSettingsService } from '../../services/user-settings.service';
+import { UserSettingsService } from '../../services/user/user-settings.service';
 
 describe('ClientViewPage', () => {
   let component: ClientViewPage;

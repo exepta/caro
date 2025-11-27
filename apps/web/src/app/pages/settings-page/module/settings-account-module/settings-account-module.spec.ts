@@ -1,7 +1,7 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { NO_ERRORS_SCHEMA, signal } from '@angular/core';
 import { SettingsAccountModule } from './settings-account-module';
-import { UserSettingsService } from '../../../../services/user-settings.service';
+import { UserSettingsService } from '../../../../services/user/user-settings.service';
 
 describe('SettingsAccountModule', () => {
   let component: SettingsAccountModule;

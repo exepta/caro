@@ -1,0 +1,30 @@
+/*
+ Modals
+ */
+
+.modal-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: #e0e0e0;
+}
+
+.modal-body {
+  padding-top: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .description {
+    color: #a0a0a0;
+    font-size: 0.9rem;
+    margin-bottom: 5px;
+  }
+}
+
+/* Footer */
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 0.5rem;
+}

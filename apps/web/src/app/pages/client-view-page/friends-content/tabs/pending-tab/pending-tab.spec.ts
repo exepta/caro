@@ -1,8 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { PendingTab } from './pending-tab';
-import { FriendService } from '../../../../../services/friend.service';
-import { FriendRequestVm, FriendVm } from '../../../../../services/friends.vm';
+import { FriendService } from '../../../../../services/social/friend.service';
+import { FriendRequestVm, FriendVm } from '../../../../../services/social/friends.vm';
 
 describe('PendingTab', () => {
   let fixture: ComponentFixture<PendingTab>;
