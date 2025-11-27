@@ -14,8 +14,9 @@
           @if (friend.bannerUrl) {
             <img class="banner-img" [src]="friend.bannerUrl" alt="" />
             <div class="filter"></div>
+          } @else {
+            <div class="fallback-color-back"></div>
           }
-          <div class="fallback-color-back"></div>
 
           <div class="friend-content">
             <div
@@ -44,7 +45,7 @@
             position="right"
             variant="default"
           >
-            <button class="btn success">
+            <button class="btn success" (click)="onCall(friend)">
               <fa-icon [icon]="faPhone"></fa-icon>
             </button>
           </app-tooltip>

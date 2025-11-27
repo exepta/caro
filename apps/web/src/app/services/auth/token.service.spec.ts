@@ -1,4 +1,3 @@
-// src/app/services/token.service.spec.ts
 import { TestBed } from '@angular/core/testing';
 import { TokenService } from './token.service';
 
@@ -21,7 +20,6 @@ describe('TokenService', () => {
 
     service = TestBed.inject(TokenService);
 
-    // Einfacher In-Memory-Store für localStorage
     store = {};
 
     const lsProto = Object.getPrototypeOf(window.localStorage);
@@ -95,13 +93,11 @@ describe('TokenService', () => {
     expect(setItemSpy).toHaveBeenNthCalledWith(1, ACCESS_KEY, 'access-abc');
     expect(setItemSpy).toHaveBeenNthCalledWith(2, REFRESH_KEY, 'refresh-def');
 
-    // zur Sicherheit: unser In-Memory-Store wurde befüllt
     expect(store[ACCESS_KEY]).toBe('access-abc');
     expect(store[REFRESH_KEY]).toBe('refresh-def');
   });
 
   it('clear should remove both access and refresh tokens from localStorage', () => {
-    // erst was reinlegen
     store[ACCESS_KEY] = 'access-x';
     store[REFRESH_KEY] = 'refresh-y';
 
@@ -128,7 +124,6 @@ describe('TokenService', () => {
   });
 
   it('hasTokens should return false when access token is missing', () => {
-    // nur Refresh vorhanden
     store[REFRESH_KEY] = 'refresh-only';
 
     const result = service.hasTokens();
@@ -137,7 +132,6 @@ describe('TokenService', () => {
   });
 
   it('hasTokens should return false when refresh token is missing', () => {
-    // nur Access vorhanden
     store[ACCESS_KEY] = 'access-only';
 
     const result = service.hasTokens();

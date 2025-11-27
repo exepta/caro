@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { App } from './app';
-import { TokenService } from './services/token.service';
-import { UserService } from './services/user.service';
-import { UserSettingsService } from './services/user-settings.service';
+import { TokenService } from './services/auth/token.service';
+import { UserService } from './services/user/user.service';
+import { UserSettingsService } from './services/user/user-settings.service';
 
 describe('App root component', () => {
   let tokenServiceMock: jest.Mocked<TokenService>;

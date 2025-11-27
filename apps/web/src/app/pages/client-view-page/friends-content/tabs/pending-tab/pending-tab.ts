@@ -1,7 +1,7 @@
 import {Component, inject, Input, signal} from '@angular/core';
-import {FriendRequestVm, FriendVm} from '../../../../../services/friends.vm';
+import {FriendRequestVm, FriendVm} from '../../../../../services/social/friends.vm';
 import {DatePipe, UpperCasePipe} from '@angular/common';
-import {FriendService} from '../../../../../services/friend.service';
+import {FriendService} from '../../../../../services/social/friend.service';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faBan, faCheck, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {switchMap} from 'rxjs/operators';

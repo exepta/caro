@@ -1,13 +1,15 @@
 import {Component, effect, inject} from '@angular/core';
 import {RouterOutlet} from '@angular/router';
-import {TokenService} from './services/token.service';
-import {UserService} from './services/user.service';
-import {UserSettingsService} from './services/user-settings.service';
+import {TokenService} from './services/auth/token.service';
+import {UserService} from './services/user/user.service';
+import {UserSettingsService} from './services/user/user-settings.service';
+import {CallModalComponent} from './pages/components/call-modal/call-modal.component';
 
 @Component({
   selector: 'app-root',
   imports: [
-    RouterOutlet
+    RouterOutlet,
+    CallModalComponent
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss'

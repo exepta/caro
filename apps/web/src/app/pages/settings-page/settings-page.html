@@ -66,24 +66,18 @@
   X
 </button>
 
-@if (showLogoutModal()) {
-  <div class="modal-backdrop" (click)="closeLogoutModal()">
-    <div class="modal">
-      <header class="modal-header">
-        <h4>Logout</h4>
-      </header>
-      <section class="modal-body">
-        <p class="description">Are you sure you want to logout?</p>
-      </section>
+<app-modal
+  [(open)]="showLogoutModal"
+  (closed)="closeLogoutModal()"
+>
+  <h4 modal-header>Logout</h4>
 
-      <footer class="modal-footer">
-        <button type="button" class="normal-btn" (click)="closeLogoutModal()">
-          Cancel
-        </button>
-        <button type="button" class="danger-btn" (click)="confirmLogout()">
-          Logout
-        </button>
-      </footer>
-    </div>
-  </div>
-}
+  <p modal-body class="description">Are you sure you want to logout?</p>
+
+  <button modal-footer type="button" class="normal-btn" (click)="closeLogoutModal()">
+    Cancel
+  </button>
+  <button modal-footer type="button" class="danger-btn" (click)="confirmLogout()">
+    Logout
+  </button>
+</app-modal>

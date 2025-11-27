@@ -1,7 +1,7 @@
 import {Component, EventEmitter, inject, Input, Output} from '@angular/core';
 import { FaIconComponent } from '@fortawesome/angular-fontawesome';
 import {faGear, faHeadphones, faMicrophone, faServer, faUser, faUserGroup} from '@fortawesome/free-solid-svg-icons';
-import {UserSettingsService} from '../../../services/user-settings.service';
+import {UserSettingsService} from '../../../services/user/user-settings.service';
 
 export type SideBarSection = 'friends' | 'groups' | 'servers';
 

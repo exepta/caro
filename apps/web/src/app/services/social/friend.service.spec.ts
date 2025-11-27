@@ -1,4 +1,3 @@
-// friend.service.spec.ts
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { FriendService } from './friend.service';
@@ -8,7 +7,7 @@ import {
   FriendsInternalService,
   UserInternalService,
   UserSettingsResponse,
-} from '../api';
+} from '../../api';
 
 describe('FriendService', () => {
   let service: FriendService;
@@ -79,7 +78,7 @@ describe('FriendService', () => {
       f2: {
         id: 'f2',
         username: 'friend2',
-        profile: {} as any, // kein Profil -> Fallbacks
+        profile: {} as any,
       } as UserSettingsResponse,
     };
 
@@ -98,7 +97,6 @@ describe('FriendService', () => {
         accentColor: '#111111',
       });
 
-      // zweiter: nur username bekannt, rest fällt zurück
       expect(result[1]).toEqual({
         id: 'f2',
         username: 'friend2',

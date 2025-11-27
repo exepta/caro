@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { SideBar, SideBarSection } from './side-bar';
-import { UserSettingsService } from '../../../services/user-settings.service';
+import { UserSettingsService } from '../../../services/user/user-settings.service';
 
 describe('SideBar', () => {
   let fixture: ComponentFixture<SideBar>;

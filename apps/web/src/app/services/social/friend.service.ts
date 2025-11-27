@@ -8,7 +8,7 @@ import {
   FriendsInternalService,
   UserInternalService,
   UserSettingsResponse,
-} from '../api';
+} from '../../api';
 
 @Injectable({ providedIn: 'root' })
 export class FriendService {
@@ -38,39 +38,13 @@ export class FriendService {
 
   getOutgoingFriendRequests(): Observable<FriendRequestVm[]> {
     return this.friendApi.getOutgoingFriendRequests().pipe(
-      switchMap((requests: FriendRequestResponse[] | null | undefined) => {
-        if (!requests || requests.length === 0) {
-          return of<FriendRequestVm[]>([]);
-        }
-
-        const calls = requests.map((req) => {
-          const userId = req.userId!;
-          return this.userApi.getUserById(userId).pipe(
-            map((user: UserSettingsResponse) => this.mapRequestToVm(req, user)),
-          );
-        });
-
-        return forkJoin(calls);
-      }),
+      switchMap((requests) => this.mapFriendRequests(requests)),
     );
   }
 
   getIncomingFriendRequests(): Observable<FriendRequestVm[]> {
     return this.friendApi.getIncomingFriendRequests().pipe(
-      switchMap((requests: FriendRequestResponse[] | null | undefined) => {
-        if (!requests || requests.length === 0) {
-          return of<FriendRequestVm[]>([]);
-        }
-
-        const calls = requests.map((req) => {
-          const userId = req.userId!;
-          return this.userApi.getUserById(userId).pipe(
-            map((user: UserSettingsResponse) => this.mapRequestToVm(req, user)),
-          );
-        });
-
-        return forkJoin(calls);
-      }),
+      switchMap((requests) => this.mapFriendRequests(requests)),
     );
   }
 
@@ -136,4 +110,22 @@ export class FriendService {
       accentColor: profile.accentColor ?? null,
     };
   }
+
+  private mapFriendRequests(
+    requests: FriendRequestResponse[] | null | undefined,
+  ): Observable<FriendRequestVm[]> {
+    if (!requests || requests.length === 0) {
+      return of<FriendRequestVm[]>([]);
+    }
+
+    const calls = requests.map((req) => {
+      const userId = req.userId!;
+      return this.userApi.getUserById(userId).pipe(
+        map((user: UserSettingsResponse) => this.mapRequestToVm(req, user)),
+      );
+    });
+
+    return forkJoin(calls);
+  }
+
 }

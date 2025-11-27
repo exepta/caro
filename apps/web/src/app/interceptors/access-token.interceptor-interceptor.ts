@@ -7,7 +7,7 @@ import {
   HttpRequest,
 } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { TokenService } from '../services/token.service';
+import { TokenService } from '../services/auth/token.service';
 import {
   Observable,
   ReplaySubject,

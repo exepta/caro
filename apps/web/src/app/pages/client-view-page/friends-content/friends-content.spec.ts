@@ -1,9 +1,9 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import {of, throwError} from 'rxjs';
 import { FriendsContent } from './friends-content';
-import { FriendService } from '../../../services/friend.service';
-import { UserService } from '../../../services/user.service';
-import { FriendRequestVm, FriendVm } from '../../../services/friends.vm';
+import { FriendService } from '../../../services/social/friend.service';
+import { UserService } from '../../../services/user/user.service';
+import { FriendRequestVm, FriendVm } from '../../../services/social/friends.vm';
 import { UserSettingsResponse } from '../../../api';
 
 describe('FriendsContent', () => {

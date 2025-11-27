@@ -1,6 +1,7 @@
 import { Component, computed, effect, inject } from '@angular/core';
 import { ColorPicker } from '../../../../controls/color-picker/color-picker';
-import {UserSettingsService} from '../../../../services/user-settings.service';
+import {UserSettingsService} from '../../../../services/user/user-settings.service';
+import {Modal} from '../../../components/modal/modal';
 
 interface AccountEditControl {
   key: string;
@@ -14,6 +15,7 @@ interface AccountEditControl {
   standalone: true,
   imports: [
     ColorPicker,
+    Modal,
   ],
   templateUrl: './settings-account-module.html',
   styleUrls: [

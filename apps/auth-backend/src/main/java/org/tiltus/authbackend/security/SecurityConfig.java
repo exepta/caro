@@ -44,6 +44,7 @@ public class SecurityConfig {
                                 "/actuator/health",
                                 "/actuator/health/**"
                         ).permitAll()
+                        .requestMatchers("/ws/**", "/ws").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex

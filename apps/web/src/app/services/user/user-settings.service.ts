@@ -1,5 +1,5 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
-import { UserInternalService, UserSettingsResponse } from '../api';
+import { UserInternalService, UserSettingsResponse } from '../../api';
 import { UserService } from './user.service';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';

@@ -12,7 +12,7 @@ import {
   RegisterRequest,
   LoginRequest,
   TokenResponse,
-} from '../api';
+} from '../../api';
 import { Router } from '@angular/router';
 
 describe('AuthService (enhanced tests)', () => {
